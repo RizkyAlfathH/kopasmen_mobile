@@ -2,10 +2,18 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = "http://127.0.0.1:8000/api";
+  static const String baseUrl =
+      "http://127.0.0.1:8000/api";
+
+  // ======================
+  // AUTH
+  // ======================
 
   // Login
-  static Future<Map<String, dynamic>?> login(String nip, String password) async {
+  static Future<Map<String, dynamic>?> login(
+    String nip,
+    String password,
+  ) async {
     final url = Uri.parse("$baseUrl/login/");
     final response = await http.post(
       url,
@@ -49,6 +57,10 @@ class ApiService {
     return response.statusCode == 200;
   }
 
+  // ======================
+  // SIMPANAN & PENARIKAN
+  // ======================
+
   // Ambil daftar simpanan berdasarkan NIP
   static Future<List<dynamic>> getSimpanan(String nip) async {
     final url = Uri.parse("$baseUrl/$nip/simpan/");
@@ -70,6 +82,22 @@ class ApiService {
       return jsonDecode(response.body);
     } else {
       throw Exception("Gagal ambil data penarikan");
+    }
+  }
+
+  // ======================
+  // PINJAMAN & ANGSURAN
+  // ======================
+
+  // Ambil daftar pinjaman berdasarkan NIP
+  static Future<List<dynamic>> getPinjaman(String nip) async {
+    final url = Uri.parse("$baseUrl/$nip/pinjaman/");
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception("Gagal ambil data pinjaman");
     }
   }
 }

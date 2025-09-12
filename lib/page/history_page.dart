@@ -298,7 +298,7 @@ class _HistoryPageState extends State<HistoryPage> {
                     _buildTabs(),
                     const SizedBox(height: 20),
                     _buildTransactionContent(),
-                    const SizedBox(height: 100), // Space for bottom navigation
+                    const SizedBox(height: 100),
                   ],
                 ),
               ),
@@ -306,7 +306,6 @@ class _HistoryPageState extends State<HistoryPage> {
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomNavigation(),
     );
   }
 
@@ -783,111 +782,6 @@ class _HistoryPageState extends State<HistoryPage> {
                 ),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomNavigation() {
-    final List<BottomNavItem> navItems = [
-      BottomNavItem(
-        title: 'Simpanan',
-        icon: Icons.savings,
-        isSelected: false,
-        onTap: () {
-          // Navigate to Simpanan page
-        },
-      ),
-      BottomNavItem(
-        title: 'Pinjaman',
-        icon: Icons.payment,
-        isSelected: false,
-        onTap: () {
-          // Navigate to Pinjaman page
-        },
-      ),
-      BottomNavItem(
-        title: 'Home',
-        icon: Icons.home,
-        isSelected: false,
-        onTap: () {
-          Navigator.of(context).pop();
-        },
-      ),
-      BottomNavItem(
-        title: 'History',
-        icon: Icons.history,
-        isSelected: true,
-        onTap: () {
-          // Already on history page
-        },
-      ),
-      BottomNavItem(
-        title: 'Profile',
-        icon: Icons.person,
-        isSelected: false,
-        onTap: () {
-          // Navigate to Profile page
-        },
-      ),
-    ];
-
-    return Container(
-      height: 72,
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFDC16),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.25),
-            blurRadius: 80,
-            offset: const Offset(4, 0),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: navItems.map((item) => _buildNavItem(item)).toList(),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(BottomNavItem item) {
-    return GestureDetector(
-      onTap: item.onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (item.isSelected)
-            Container(
-              width: 40,
-              height: 40,
-              decoration: const BoxDecoration(
-                color: Color(0xFF4E342E),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                item.icon,
-                color: const Color(0xFFFFDC16),
-                size: 20,
-              ),
-            )
-          else
-            Icon(
-              item.icon,
-              color: const Color(0xFF1A1A1A),
-              size: 20,
-            ),
-          const SizedBox(height: 4),
-          Text(
-            item.title,
-            style: TextStyle(
-              color: const Color(0xFF1A1A1A),
-              fontSize: item.isSelected ? 13 : 12,
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w700,
-            ),
           ),
         ],
       ),

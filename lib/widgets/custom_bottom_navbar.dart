@@ -1,90 +1,83 @@
 import 'package:flutter/material.dart';
 
-class CustomBottomNavBar extends StatelessWidget {
-  final int currentIndex;
-  final Function(int) onTap;
+class BottomNavItem {
+  final String title;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
 
-  const CustomBottomNavBar({
-    super.key,
-    required this.currentIndex,
+  BottomNavItem({
+    required this.title,
+    required this.icon,
+    required this.isSelected,
     required this.onTap,
   });
+}
+
+class CustomBottomNavigation extends StatelessWidget {
+  final List<BottomNavItem> navItems;
+
+  const CustomBottomNavigation({super.key, required this.navItems});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(16),
+      height: 72,
       decoration: BoxDecoration(
         color: const Color(0xFFFFDC16),
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: Colors.black.withOpacity(0.25),
+            blurRadius: 80,
+            offset: const Offset(4, 0),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: Container(
-          height: 70,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(Icons.account_balance_wallet, 'Simpanan', 0),
-              _buildNavItem(Icons.payments, 'Pinjaman', 1),
-              _buildNavItem(Icons.home, 'Home', 2, isCenter: true),
-              _buildNavItem(Icons.history, 'History', 3),
-              _buildNavItem(Icons.person, 'Profile', 4),
-            ],
-          ),
-        ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: navItems.map((item) => _buildNavItem(item)).toList(),
       ),
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, int index, {bool isCenter = false}) {
-    final isSelected = currentIndex == index;
-
+  Widget _buildNavItem(BottomNavItem item) {
     return GestureDetector(
-      onTap: () => onTap(index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 16 : 8,
-          vertical: isCenter ? 4 : 8,
-        ),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF4E342E).withOpacity(0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              padding: EdgeInsets.all(isCenter ? 8 : 6),
-              decoration: BoxDecoration(
-                color: isSelected || isCenter
-                    ? const Color(0xFF4E342E)
-                    : const Color(0xFF4E342E).withOpacity(0.7),
-                borderRadius: BorderRadius.circular(isCenter ? 16 : 12),
+      onTap: item.onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (item.isSelected)
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                color: Color(0xFF4E342E),
+                shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: Colors.white, size: isCenter ? 24 : 20),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? const Color(0xFF4E342E) : const Color(0xFF4E342E).withOpacity(0.7),
-                fontSize: isSelected ? 11 : 10,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              child: Icon(
+                item.icon,
+                color: const Color(0xFFFFDC16),
+                size: 20,
               ),
+            )
+          else
+            Icon(
+              item.icon,
+              color: const Color(0xFF1A1A1A),
+              size: 20,
             ),
-          ],
-        ),
+          const SizedBox(height: 4),
+          Text(
+            item.title,
+            style: TextStyle(
+              color: const Color(0xFF1A1A1A),
+              fontSize: item.isSelected ? 13 : 12,
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
