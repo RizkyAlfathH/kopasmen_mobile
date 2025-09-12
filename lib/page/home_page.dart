@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'tabungan_page.dart'; // pastikan import file ini
+import 'tabungan_page.dart';
 
 class HomePage extends StatelessWidget {
   final Map<String, dynamic> user;
@@ -11,7 +11,7 @@ class HomePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Beranda"),
-        backgroundColor: Colors.teal,
+        backgroundColor: const Color.fromARGB(255, 242, 255, 254),
       ),
       body: Center(
         child: Card(
@@ -39,7 +39,10 @@ class HomePage extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => TabunganPage(nip: user['nip']),
+                        builder: (context) => TabunganPage(
+                          nip: user['nip'],
+                          nama: user['nama'],
+                        ),
                       ),
                     );
                   },
