@@ -47,7 +47,6 @@ class _HistoryPageState extends State<HistoryPage> {
   final List<String> filterOptions = ['Semua', '1 minggu', '1 Bulan', '3 Bulan'];
   final List<String> tabs = ['Simpanan', 'Pinjaman'];
 
-  // Raw API data storage
   List<dynamic> _simpananData = [];
   List<dynamic> _pinjamanData = [];
 
