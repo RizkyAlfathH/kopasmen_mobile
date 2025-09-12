@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'tabungan_page.dart';
+import 'history_page.dart';
 
 class HomePage extends StatelessWidget {
   final Map<String, dynamic> user;
@@ -48,6 +49,29 @@ class HomePage extends StatelessWidget {
                   },
                   icon: const Icon(Icons.account_balance_wallet),
                   label: const Text("Lihat Tabungan"),
+                ),
+
+                const SizedBox(height: 10),
+
+                // 🔹 Tombol History
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueGrey,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => HistoryPage(
+                          nip: user['nip'],
+                          nama: user['nama'],
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.history),
+                  label: const Text("Riwayat Transaksi"),
                 ),
               ],
             ),
