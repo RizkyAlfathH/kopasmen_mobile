@@ -12,8 +12,8 @@ class FigmaToCodeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color.fromARGB(255, 18, 32, 47),
+      theme: ThemeData(
+        fontFamily: 'Poppins',
       ),
       home: const HistoryPage(
         nip: "123456789",
@@ -26,7 +26,7 @@ class FigmaToCodeApp extends StatelessWidget {
 class HistoryPage extends StatefulWidget {
   final String nip;
   final String nama;
-  
+
   const HistoryPage({
     super.key,
     required this.nip,
@@ -38,13 +38,11 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-  int selectedFilter = 0;
   int selectedTab = 0;
   bool isLoading = false;
   List<TransactionItem> transactions = [];
   String searchQuery = '';
 
-  final List<String> filterOptions = ['Semua', '1 minggu', '1 Bulan', '3 Bulan'];
   final List<String> tabs = ['Simpanan', 'Pinjaman'];
 
   List<dynamic> _simpananData = [];
@@ -62,15 +60,11 @@ class _HistoryPageState extends State<HistoryPage> {
     });
 
     try {
-      // Fetch data from API services
       await Future.wait([
         _fetchSimpananData(),
         _fetchPinjamanData(),
       ]);
-
-      // Process and combine the data
       _processTransactionData();
-      
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -107,14 +101,14 @@ class _HistoryPageState extends State<HistoryPage> {
   void _processTransactionData() {
     List<TransactionItem> processedTransactions = [];
 
-    // Process Simpanan data
+    // Simpanan
     for (var item in _simpananData) {
       final amount = double.tryParse(item['nominal'].toString()) ?? 0;
       final jenisNama = item['jenis_simpanan']['nama_jenis'].toString();
       final tanggal = item['tanggal_menyimpan'].toString();
-      
+
       processedTransactions.add(TransactionItem(
-        id: '${widget.nip}_simpanan_${item['id']}',
+        id: '${widget.nip}simpanan${item['id']}',
         title: jenisNama,
         description: 'Setoran $jenisNama - ${widget.nama}',
         amount: '+ Rp ${_formatCurrency(amount)}',
@@ -127,15 +121,14 @@ class _HistoryPageState extends State<HistoryPage> {
       ));
     }
 
-    // Process Pinjaman data
+    // Pinjaman
     for (var item in _pinjamanData) {
       final amount = double.tryParse(item['nominal'].toString()) ?? 0;
       final jenisNama = item['jenis_pinjaman']['nama_jenis'].toString();
       final tanggal = item['tanggal_meminjam'].toString();
-      
-      // Add pinjaman (loan disbursement) as positive transaction
+
       processedTransactions.add(TransactionItem(
-        id: '${widget.nip}_pinjaman_${item['id']}',
+        id: '${widget.nip}pinjaman${item['id']}',
         title: 'Pencairan $jenisNama',
         description: 'Pinjaman $jenisNama - ${widget.nama}',
         amount: '+ Rp ${_formatCurrency(amount)}',
@@ -147,15 +140,14 @@ class _HistoryPageState extends State<HistoryPage> {
         rawData: item,
       ));
 
-      // If there are installment records, add them as negative transactions
       if (item['angsuran'] != null && item['angsuran'] is List) {
         List<dynamic> angsuranList = item['angsuran'];
         for (var angsuran in angsuranList) {
           final angsuranAmount = double.tryParse(angsuran['nominal'].toString()) ?? 0;
           final angsuranTanggal = angsuran['tanggal_bayar'].toString();
-          
+
           processedTransactions.add(TransactionItem(
-            id: '${widget.nip}_angsuran_${angsuran['id']}',
+            id: '${widget.nip}angsuran${angsuran['id']}',
             title: 'Angsuran $jenisNama',
             description: 'Pembayaran cicilan $jenisNama - ${widget.nama}',
             amount: '- Rp ${_formatCurrency(angsuranAmount)}',
@@ -170,17 +162,17 @@ class _HistoryPageState extends State<HistoryPage> {
       }
     }
 
-    // Sort transactions by date (newest first)
+    // Sort by date terbaru
     processedTransactions.sort((a, b) {
       try {
-        final dateA = DateTime.parse(a.rawData['tanggal_menyimpan'] ?? 
-                                   a.rawData['tanggal_meminjam'] ?? 
-                                   a.rawData['tanggal_bayar'] ?? 
-                                   DateTime.now().toString());
-        final dateB = DateTime.parse(b.rawData['tanggal_menyimpan'] ?? 
-                                   b.rawData['tanggal_meminjam'] ?? 
-                                   b.rawData['tanggal_bayar'] ?? 
-                                   DateTime.now().toString());
+        final dateA = DateTime.parse(a.rawData['tanggal_menyimpan'] ??
+            a.rawData['tanggal_meminjam'] ??
+            a.rawData['tanggal_bayar'] ??
+            DateTime.now().toString());
+        final dateB = DateTime.parse(b.rawData['tanggal_menyimpan'] ??
+            b.rawData['tanggal_meminjam'] ??
+            b.rawData['tanggal_bayar'] ??
+            DateTime.now().toString());
         return dateB.compareTo(dateA);
       } catch (e) {
         return 0;
@@ -195,52 +187,25 @@ class _HistoryPageState extends State<HistoryPage> {
   List<TransactionItem> get filteredTransactions {
     List<TransactionItem> filtered = transactions;
 
-    // Filter by tab
+    // Tab filter
     final currentTabType = tabs[selectedTab].toLowerCase();
     filtered = filtered.where((transaction) {
       return transaction.type == currentTabType;
     }).toList();
 
-    // Filter by search query
+    // Search (title, description, date)
     if (searchQuery.isNotEmpty) {
       filtered = filtered.where((transaction) {
-        return transaction.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
-               transaction.description.toLowerCase().contains(searchQuery.toLowerCase());
+        final q = searchQuery.toLowerCase();
+        return transaction.title.toLowerCase().contains(q) ||
+            transaction.description.toLowerCase().contains(q) ||
+            transaction.date.toLowerCase().contains(q);
       }).toList();
     }
 
-    // Filter by time period
-    if (selectedFilter > 0) {
-      final now = DateTime.now();
-      DateTime cutoffDate;
-      
-      switch (selectedFilter) {
-        case 1: // 1 minggu
-          cutoffDate = now.subtract(Duration(days: 7));
-          break;
-        case 2: // 1 Bulan
-          cutoffDate = now.subtract(Duration(days: 30));
-          break;
-        case 3: // 3 Bulan
-          cutoffDate = now.subtract(Duration(days: 90));
-          break;
-        default:
-          cutoffDate = DateTime(2000); // Very old date to include all
-      }
-
-      filtered = filtered.where((transaction) {
-        try {
-          final transactionDate = DateTime.parse(
-            transaction.rawData['tanggal_menyimpan'] ?? 
-            transaction.rawData['tanggal_meminjam'] ?? 
-            transaction.rawData['tanggal_bayar'] ?? 
-            DateTime.now().toString()
-          );
-          return transactionDate.isAfter(cutoffDate);
-        } catch (e) {
-          return true; // Include if date parsing fails
-        }
-      }).toList();
+    // Ambil hanya 5 terakhir
+    if (filtered.length > 5) {
+      filtered = filtered.sublist(0, 5);
     }
 
     return filtered;
@@ -256,7 +221,7 @@ class _HistoryPageState extends State<HistoryPage> {
       final date = DateTime.parse(dateString);
       return DateFormat('dd MMM yyyy', 'id').format(date);
     } catch (e) {
-      return dateString; // Return original if parsing fails
+      return dateString;
     }
   }
 
@@ -265,7 +230,7 @@ class _HistoryPageState extends State<HistoryPage> {
       final date = DateTime.parse(dateString);
       return DateFormat('HH:mm').format(date);
     } catch (e) {
-      return '00:00'; // Default time if parsing fails
+      return '00:00';
     }
   }
 
@@ -292,8 +257,6 @@ class _HistoryPageState extends State<HistoryPage> {
                     _buildUserInfo(),
                     const SizedBox(height: 20),
                     _buildSearchBar(),
-                    const SizedBox(height: 20),
-                    _buildFilterOptions(),
                     const SizedBox(height: 20),
                     _buildTabs(),
                     const SizedBox(height: 20),
@@ -330,7 +293,6 @@ class _HistoryPageState extends State<HistoryPage> {
             style: TextStyle(
               color: Color(0xFF4E342E),
               fontSize: 16,
-              fontFamily: 'Poppins',
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -404,16 +366,16 @@ class _HistoryPageState extends State<HistoryPage> {
 
   Widget _buildSearchBar() {
     return Container(
-      height: 38,
+      height: 42,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFCCCCCC)),
+        border: Border.all(color: const Color(0xFFE0E0E0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.25),
-            blurRadius: 2,
-            offset: const Offset(0, 0),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -423,70 +385,26 @@ class _HistoryPageState extends State<HistoryPage> {
             searchQuery = value;
           });
         },
+        style: const TextStyle(
+          fontSize: 14,
+          color: Color(0xFF4E342E),
+          fontWeight: FontWeight.w500,
+        ),
         decoration: const InputDecoration(
-          hintText: 'Cari Transaksi...',
+          hintText: 'Cari transaksi (judul / tanggal)...',
           hintStyle: TextStyle(
-            color: Color(0xBF4E342E),
-            fontSize: 16,
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w600,
+            color: Color(0x994E342E),
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
           ),
           prefixIcon: Icon(
             Icons.search,
-            color: Color(0xBF4E342E),
+            color: Color(0xFFBCAAA4),
+            size: 20,
           ),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         ),
-      ),
-    );
-  }
-
-  Widget _buildFilterOptions() {
-    return SizedBox(
-      height: 25,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: filterOptions.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final isSelected = selectedFilter == index;
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                selectedFilter = index;
-              });
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFFFFDC16) : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFCCCCCC)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.25),
-                    blurRadius: 2,
-                    offset: const Offset(0, 0),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Text(
-                  filterOptions[index],
-                  style: TextStyle(
-                    color: isSelected 
-                        ? const Color(0xFF4E342E) 
-                        : const Color(0xB24E342E),
-                    fontSize: 14,
-                    fontFamily: 'Poppins',
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
       ),
     );
   }
@@ -506,11 +424,10 @@ class _HistoryPageState extends State<HistoryPage> {
                 child: Text(
                   tabs[0],
                   style: TextStyle(
-                    color: selectedTab == 0 
+                    color: selectedTab == 0
                         ? const Color(0xFF4E342E)
                         : const Color(0xCE4E342E),
                     fontSize: 15,
-                    fontFamily: 'Poppins',
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -545,11 +462,10 @@ class _HistoryPageState extends State<HistoryPage> {
                 child: Text(
                   tabs[1],
                   style: TextStyle(
-                    color: selectedTab == 1 
+                    color: selectedTab == 1
                         ? const Color(0xFF4E342E)
                         : const Color(0xCE4E342E),
                     fontSize: 15,
-                    fontFamily: 'Poppins',
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -603,7 +519,7 @@ class _HistoryPageState extends State<HistoryPage> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: filteredList.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 20),
+      separatorBuilder: (context, index) => const SizedBox(height: 16),
       itemBuilder: (context, index) {
         return _buildTransactionCard(filteredList[index]);
       },
@@ -654,37 +570,37 @@ class _HistoryPageState extends State<HistoryPage> {
 
   Widget _buildTransactionCard(TransactionItem transaction) {
     return Container(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xFFCCCCCC)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE0E0E0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.25),
-            blurRadius: 2,
-            offset: const Offset(0, 0),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            width: 35,
-            height: 35,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: const Color(0xFFFFDC16),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
-              transaction.type == 'simpanan' 
+              transaction.type == 'simpanan'
                   ? Icons.account_balance_wallet
                   : Icons.credit_card,
               color: const Color(0xFF4E342E),
-              size: 20,
+              size: 22,
             ),
           ),
-          const SizedBox(width: 15),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -694,7 +610,6 @@ class _HistoryPageState extends State<HistoryPage> {
                   style: const TextStyle(
                     color: Color(0xFF4E342E),
                     fontSize: 15,
-                    fontFamily: 'Poppins',
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -702,44 +617,33 @@ class _HistoryPageState extends State<HistoryPage> {
                 Text(
                   transaction.description,
                   style: const TextStyle(
-                    color: Color(0xFF4E342E),
-                    fontSize: 14,
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF6D4C41),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(
-                      Icons.calendar_today,
-                      size: 14,
-                      color: Color(0xB74E342E),
-                    ),
+                    const Icon(Icons.calendar_today,
+                        size: 13, color: Color(0xFF8D6E63)),
                     const SizedBox(width: 4),
                     Text(
                       transaction.date,
                       style: const TextStyle(
-                        color: Color(0xB74E342E),
+                        color: Color(0xFF8D6E63),
                         fontSize: 12,
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(width: 15),
-                    const Icon(
-                      Icons.access_time,
-                      size: 14,
-                      color: Color(0xB74E342E),
-                    ),
+                    const SizedBox(width: 10),
+                    const Icon(Icons.access_time,
+                        size: 13, color: Color(0xFF8D6E63)),
                     const SizedBox(width: 4),
                     Text(
                       transaction.time,
                       style: const TextStyle(
-                        color: Color(0xB74E342E),
+                        color: Color(0xFF8D6E63),
                         fontSize: 12,
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -747,41 +651,13 @@ class _HistoryPageState extends State<HistoryPage> {
               ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                transaction.amount,
-                style: TextStyle(
-                  color: transaction.isPositive 
-                      ? const Color(0xFF008F09) 
-                      : Colors.red,
-                  fontSize: 14,
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: transaction.type == 'simpanan' 
-                      ? Colors.blue.withOpacity(0.1)
-                      : Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  transaction.type.toUpperCase(),
-                  style: TextStyle(
-                    color: transaction.type == 'simpanan' 
-                        ? Colors.blue
-                        : Colors.orange,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
+          Text(
+            transaction.amount,
+            style: TextStyle(
+              color: transaction.isPositive ? Colors.green[700] : Colors.red,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -797,9 +673,9 @@ class TransactionItem {
   final String date;
   final String time;
   final bool isPositive;
-  final String type; // 'simpanan' or 'pinjaman'
+  final String type;
   final String userNip;
-  final dynamic rawData; // Store original API data for reference
+  final Map<String, dynamic> rawData;
 
   TransactionItem({
     required this.id,
@@ -812,19 +688,5 @@ class TransactionItem {
     required this.type,
     required this.userNip,
     required this.rawData,
-  });
-}
-
-class BottomNavItem {
-  final String title;
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  BottomNavItem({
-    required this.title,
-    required this.icon,
-    required this.isSelected,
-    required this.onTap,
   });
 }

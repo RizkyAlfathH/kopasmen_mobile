@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:tes/page/history_page.dart';
+import 'package:tes/page/home_page.dart';
 import '../services/api_service.dart';
 import 'package:intl/intl.dart';
 
 class TabunganPage extends StatefulWidget {
   final String nip;
-  final String nama; // Add nama parameter for display
+  final String nama;
 
   const TabunganPage({super.key, required this.nip, this.nama = "User"});
 
@@ -86,6 +88,53 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
     }).toList();
   }
 
+  // NEW METHOD: Get last 3 transactions for specific type
+  List<dynamic> _getLastThreeTransactions(String type) {
+    final filtered = _getFilteredSimpanan(type);
+    
+    // Debug: Print filtered data
+    print('Filtered data for $type: ${filtered.length} items');
+    for (var item in filtered) {
+      print('Date: ${item['tanggal_menyimpan']}, Amount: ${item['nominal']}');
+    }
+    
+    // Sort by date (newest first) and take only 3 items
+    filtered.sort((a, b) {
+      // Handle different date formats
+      DateTime parseDate(String dateStr) {
+        try {
+          // Try parsing as ISO format first
+          if (dateStr.contains('T')) {
+            return DateTime.parse(dateStr);
+          }
+          // Try parsing as yyyy-mm-dd format
+          if (dateStr.contains('-') && dateStr.length >= 10) {
+            return DateTime.parse(dateStr.substring(0, 10));
+          }
+          // Try parsing as dd/mm/yyyy format
+          if (dateStr.contains('/')) {
+            final parts = dateStr.split('/');
+            if (parts.length == 3) {
+              return DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+            }
+          }
+          return DateTime(1900);
+        } catch (e) {
+          print('Error parsing date: $dateStr, Error: $e');
+          return DateTime(1900);
+        }
+      }
+      
+      final dateA = parseDate(a['tanggal_menyimpan'].toString());
+      final dateB = parseDate(b['tanggal_menyimpan'].toString());
+      return dateB.compareTo(dateA); // Descending order (newest first)
+    });
+    
+    final result = filtered.take(3).toList();
+    print('Final result for $type: ${result.length} items');
+    return result;
+  }
+
   IconData _getIconForType(String type) {
     switch (type.toLowerCase()) {
       case 'pokok':
@@ -148,7 +197,19 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                     backgroundColor: const Color(0xFFFFDC16),
                     elevation: 0,
                     leading: GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
+                      onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => HomePage(
+                                user: {
+                                  'nip': widget.nip,
+                                  'nama': widget.nama,
+                                },
+                              ),
+                            ),
+                          );
+                        },
                       child: Container(
                         margin: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -462,7 +523,7 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                     ),
                   ),
 
-                  // Tab Content - FIXED: Wrap with Flexible instead of Expanded
+                  // Tab Content
                   Flexible(
                     child: TabBarView(
                       controller: _tabController,
@@ -521,6 +582,7 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
 
   Widget _buildTabContent(String type) {
     final filteredData = _getFilteredSimpanan(type);
+    final lastThreeTransactions = _getLastThreeTransactions(type); // MODIFIED: Use only 3 latest
     final total = type == 'pokok' ? _simpananPokok : 
                   type == 'wajib' ? _simpananWajib : _simpananSukarela;
 
@@ -567,7 +629,6 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
       );
     }
 
-    // FIXED: Use CustomScrollView instead of SingleChildScrollView with ListView
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
@@ -679,7 +740,7 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                 Row(
                   children: [
                     Text(
-                      'Riwayat Transaksi',
+                      'Transaksi Terbaru',
                       style: TextStyle(
                         color: Color(0xFF4E342E),
                         fontSize: 16,
@@ -695,7 +756,7 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '${filteredData.length} item',
+                        '3 terbaru dari ${filteredData.length}',
                         style: TextStyle(
                           color: _getColorForType(type),
                           fontSize: 12,
@@ -707,23 +768,67 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                   ],
                 ),
 
+                // Show all transactions link
+                Padding(
+                  padding: const EdgeInsets.only(top: 12, bottom: 4),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(6),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => FigmaToCodeApp()),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Lihat semua transaksi',
+                                style: TextStyle(
+                                  color: _getColorForType(type),
+                                  fontSize: 13,
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                              SizedBox(width: 4),
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                color: _getColorForType(type),
+                                size: 12,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
                 const SizedBox(height: 16),
               ],
             ),
           ),
         ),
         
-        // FIXED: Use SliverList for the transaction items
+        // MODIFIED: Use lastThreeTransactions instead of all filtered data
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
-                final item = filteredData[index];
+                final item = lastThreeTransactions[index];
                 final amount = double.tryParse(item['nominal'].toString()) ?? 0;
                 
                 return Padding(
-                  padding: EdgeInsets.only(bottom: index == filteredData.length - 1 ? 20 : 12),
+                  padding: EdgeInsets.only(bottom: index == lastThreeTransactions.length - 1 ? 20 : 12),
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -824,7 +929,7 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                   ),
                 );
               },
-              childCount: filteredData.length,
+              childCount: lastThreeTransactions.length, 
             ),
           ),
         ),
