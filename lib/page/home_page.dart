@@ -27,7 +27,10 @@ class _HomePageState extends State<HomePage> {
         nip: widget.user['nip'],
         nama: widget.user['nama'],
       ),
-      PinjamanPage(user: widget.user),
+      PinjamanPage(
+        nip: widget.user['nip'],
+        nama: widget.user['nama'],
+      ),
       _buildHomeContent(), // halaman home
       HistoryPage(
         nip: widget.user['nip'],
