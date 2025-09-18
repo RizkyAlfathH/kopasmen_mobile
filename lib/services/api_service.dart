@@ -90,14 +90,41 @@ class ApiService {
   // ======================
 
   // Ambil daftar pinjaman berdasarkan NIP
-  static Future<List<dynamic>> getPinjaman(String nip) async {
-    final url = Uri.parse("$baseUrl/$nip/pinjaman/");
-    final response = await http.get(url);
+static Future<List<dynamic>> getPinjaman(String nip) async {
+  final url = Uri.parse("$baseUrl/$nip/pinjaman/");
+  final response = await http.get(url);
 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception("Gagal ambil data pinjaman");
-    }
+  // 🔍 cek isi JSON asli
+  print("DEBUG PINJAMAN: ${response.body}");
+
+  if (response.statusCode == 200) {
+    return jsonDecode(response.body);
+  } else {
+    throw Exception("Gagal ambil data pinjaman");
   }
+}
+
+// Ambil detail pinjaman berdasarkan ID
+static Future<Map<String, dynamic>> getDetailPinjaman(int idPinjaman) async {
+  final url = Uri.parse("$baseUrl/pinjaman/$idPinjaman/");
+  final response = await http.get(url);
+
+  if (response.statusCode == 200) {
+    return jsonDecode(response.body);
+  } else {
+    throw Exception("Gagal ambil detail pinjaman");
+  }
+}
+
+// Ambil daftar angsuran dari pinjaman tertentu
+static Future<List<dynamic>> getAngsuran(int idPinjaman) async {
+  final url = Uri.parse("$baseUrl/pinjaman/$idPinjaman/angsuran/");
+  final response = await http.get(url);
+
+  if (response.statusCode == 200) {
+    return jsonDecode(response.body);
+  } else {
+    throw Exception("Gagal ambil data angsuran");
+  }
+}
 }
