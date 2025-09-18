@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'pinjaman_page.dart';
 import 'tabungan_page.dart';
 import 'history_page.dart';
+import 'profile_page.dart';
+
 
 class HomePage extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -34,7 +36,7 @@ class _HomePageState extends State<HomePage> {
         nip: widget.user['nip'],
         nama: widget.user['nama'],
       ),
-      const Center(child: Text("Profile Page")), // bisa diganti ProfilePage
+      ProfilePage(nip: widget.user['nip']),
     ];
   }
 
