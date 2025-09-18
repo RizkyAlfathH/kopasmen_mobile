@@ -75,8 +75,12 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
     totalSisaPinjamanBarang = 0;
 
     for (var item in pinjamanList) {
-      final nominal = double.tryParse(item['nominal'].toString()) ?? 0;
-      final sisaPinjaman = double.tryParse(item['sisa_pinjaman'].toString()) ?? 0;
+      final nominal = double.tryParse(
+        (item['jumlah_pinjaman'] ?? item['nominal'] ?? "0").toString()
+      ) ?? 0;
+      final sisaPinjaman = double.tryParse(
+        (item['sisa_pinjaman'] ?? "0").toString()
+      ) ?? 0;
       final jenisNama = item['jenis_pinjaman']?['nama_jenis']?.toString().toLowerCase() ?? '';
       
       if (jenisNama.contains('reguler') || jenisNama.contains('biasa')) {
@@ -1034,7 +1038,9 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                 final pinjaman = filteredData[index];
                 final idPinjaman = pinjaman['id_pinjaman']?.toString() ?? "-";
                 final jenisPinjaman = pinjaman['jenis_pinjaman']?['nama_jenis']?.toString() ?? "Tidak diketahui";
-                final nominal = double.tryParse(pinjaman['nominal'].toString()) ?? 0;
+                final nominal = double.tryParse(
+                  (pinjaman['jumlah_pinjaman'] ?? pinjaman['nominal'] ?? "0").toString()
+                ) ?? 0;
                 final sisaTagihan = double.tryParse(pinjaman['sisa_pinjaman'].toString()) ?? 0;
                 final status = pinjaman['status']?.toString() ?? "-";
                 final progress = nominal > 0 ? ((nominal - sisaTagihan) / nominal).clamp(0.0, 1.0) : 0.0;
