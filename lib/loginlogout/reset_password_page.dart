@@ -18,7 +18,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   void checkNIP() async {
     setState(() => _loading = true);
     String nip = nipController.text.trim();
-    bool exists = await ApiService.checkNIP(nip);
+    bool exists = await ApiService.checkNomorAnggota(nip);
     setState(() => _loading = false);
 
     if (exists) {

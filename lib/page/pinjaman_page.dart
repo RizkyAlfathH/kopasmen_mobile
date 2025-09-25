@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'package:intl/intl.dart';
+import 'history_page.dart';
+import 'home_page.dart';
 
 class PinjamanPage extends StatefulWidget {
   final String nip;
@@ -174,19 +176,9 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
     }
   }
 
-  String _formatCurrency(double amount) {
+  String _formatCurrency(num value) {
     final formatter = NumberFormat.decimalPattern('id');
-    return formatter.format(amount);
-  }
-
-  double _calculateMonthlyPayment(double remainingBalance) {
-    if (remainingBalance <= 0) return 0;
-    
-    // Simple calculation - you can adjust this based on your business logic
-    // This assumes a 12-month payment period, but you can customize it
-    // You might want to get the actual loan terms from your data
-    const int monthsRemaining = 12; // or get from loan data
-    return remainingBalance / monthsRemaining;
+    return formatter.format(value.floor());
   }
 
   String _getMonthName() {
@@ -196,6 +188,46 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
       'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
     return monthNames[now.month - 1];
+  }
+
+  // MODIFIED: Fungsi untuk mengelompokkan pinjaman berdasarkan jenis
+  Map<String, Map<String, dynamic>> _getGroupedPinjaman(String type) {
+    final filteredData = _getFilteredPinjaman(type);
+    Map<String, Map<String, dynamic>> groupedLoans = {};
+    
+    for (var pinjaman in filteredData) {
+      final jenisNama = pinjaman['jenis_pinjaman']?['nama_jenis']?.toString() ?? "Tidak diketahui";
+      
+      if (groupedLoans.containsKey(jenisNama)) {
+        // Tambahkan ke grup yang sudah ada
+        final existing = groupedLoans[jenisNama]!;
+        existing['count'] = (existing['count'] as int) + 1;
+        existing['total_nominal'] = (existing['total_nominal'] as double) + 
+          (double.tryParse((pinjaman['jumlah_pinjaman'] ?? pinjaman['nominal'] ?? "0").toString()) ?? 0);
+        existing['total_sisa'] = (existing['total_sisa'] as double) + 
+          (double.tryParse(pinjaman['sisa_pinjaman'].toString()) ?? 0);
+        existing['total_angsuran'] = (existing['total_angsuran'] as double) + 
+          ((double.tryParse(pinjaman['angsuran_per_bulan'].toString()) ?? 0) + 
+           (double.tryParse(pinjaman['jasa_rupiah'].toString()) ?? 0));
+        
+        // Simpan detail pinjaman untuk ditampilkan jika diperlukan
+        (existing['details'] as List).add(pinjaman);
+      } else {
+        // Buat grup baru
+        groupedLoans[jenisNama] = {
+          'jenis_nama': jenisNama,
+          'count': 1,
+          'total_nominal': double.tryParse((pinjaman['jumlah_pinjaman'] ?? pinjaman['nominal'] ?? "0").toString()) ?? 0,
+          'total_sisa': double.tryParse(pinjaman['sisa_pinjaman'].toString()) ?? 0,
+          'total_angsuran': (double.tryParse(pinjaman['angsuran_per_bulan'].toString()) ?? 0) + 
+                           (double.tryParse(pinjaman['jasa_rupiah'].toString()) ?? 0),
+          'details': [pinjaman],
+          'status': pinjaman['status']?.toString() ?? "-",
+        };
+      }
+    }
+    
+    return groupedLoans;
   }
 
   @override
@@ -234,7 +266,19 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                     backgroundColor: const Color(0xFFFFDC16),
                     elevation: 0,
                     leading: GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
+                      onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => HomePage(
+                                user: {
+                                  'nip': widget.nip,
+                                  'nama': widget.nama,
+                                },
+                              ),
+                            ),
+                          );
+                        },
                       child: Container(
                         margin: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -668,8 +712,10 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
     );
   }
 
+  // MODIFIED: Fungsi utama yang diubah untuk menampilkan pinjaman yang dikelompokkan
   Widget _buildTabContent(String type) {
     final filteredData = _getFilteredPinjaman(type);
+    final groupedLoans = _getGroupedPinjaman(type);
     final totalPinjaman = type == 'reguler' ? totalPinjamanReguler : 
                          type == 'khusus' ? totalPinjamanKhusus : totalPinjamanBarang;
     final totalSisaPinjaman = type == 'reguler' ? totalSisaPinjamanReguler : 
@@ -722,6 +768,12 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
         ),
       );
     }
+
+    // Hitung total tagihan bulanan dari semua grup
+    double totalTagihanBulanan = 0;
+    groupedLoans.values.forEach((group) {
+      totalTagihanBulanan += group['total_angsuran'] as double;
+    });
 
     return CustomScrollView(
       slivers: [
@@ -936,7 +988,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        'Rp ${_formatCurrency(_calculateMonthlyPayment(totalSisaPinjaman))}',
+                                        'Rp ${_formatCurrency(totalTagihanBulanan)}',
                                         style: TextStyle(
                                           color: Color(0xFFFF9800),
                                           fontSize: 16,
@@ -970,7 +1022,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                         
                         const SizedBox(height: 16),
                         Text(
-                          '${filteredData.length} pinjaman terdaftar',
+                          '${groupedLoans.length} jenis pinjaman (${filteredData.length} total transaksi)',
                           style: TextStyle(
                             color: _getColorForType(type).withOpacity(0.7),
                             fontSize: 14,
@@ -989,7 +1041,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                 Row(
                   children: [
                     Text(
-                      'Riwayat Pinjaman',
+                      'Ringkasan Pinjaman',
                       style: TextStyle(
                         color: Color(0xFF4E342E),
                         fontSize: 16,
@@ -1011,7 +1063,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                         border: Border.all(color: _getColorForType(type).withOpacity(0.3)),
                       ),
                       child: Text(
-                        '${filteredData.length} item',
+                        '${groupedLoans.length} grup',
                         style: TextStyle(
                           color: _getColorForType(type),
                           fontSize: 12,
@@ -1023,31 +1075,102 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                   ],
                 ),
 
+                Padding(
+                  padding: const EdgeInsets.only(top: 12, bottom: 4),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(6),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => HistoryPage(
+                                nip: widget.nip,
+                                nama: widget.nama,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Lihat detail transaksi',
+                                style: TextStyle(
+                                  color: _getColorForType(type),
+                                  fontSize: 13,
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                              SizedBox(width: 4),
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                color: _getColorForType(type),
+                                size: 12,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 16),
               ],
             ),
           ),
         ),
         
-        // Loan List
+        // Grouped Loan List - INI YANG BARU: Menampilkan grup pinjaman, bukan individual
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
-                final pinjaman = filteredData[index];
-                final idPinjaman = pinjaman['id_pinjaman']?.toString() ?? "-";
-                final jenisPinjaman = pinjaman['jenis_pinjaman']?['nama_jenis']?.toString() ?? "Tidak diketahui";
-                final nominal = double.tryParse(
-                  (pinjaman['jumlah_pinjaman'] ?? pinjaman['nominal'] ?? "0").toString()
-                ) ?? 0;
-                final sisaTagihan = double.tryParse(pinjaman['sisa_pinjaman'].toString()) ?? 0;
-                final status = pinjaman['status']?.toString() ?? "-";
-                final progress = nominal > 0 ? ((nominal - sisaTagihan) / nominal).clamp(0.0, 1.0) : 0.0;
-                final monthlyPayment = _calculateMonthlyPayment(sisaTagihan);
+                final groupList = groupedLoans.values.toList();
+                final group = groupList[index];
+                final jenisNama = group['jenis_nama'] as String;
+                final count = group['count'] as int;
+                final totalNominal = group['total_nominal'] as double;
+                final totalSisa = group['total_sisa'] as double;
+                final totalAngsuran = group['total_angsuran'] as double;
+                final progress = totalNominal > 0
+                    ? ((totalNominal - totalSisa) / totalNominal).clamp(0.0, 1.0)
+                    : 0.0;
+                final details = group['details'] as List;
+                List<Map<String, dynamic>> allPayments = [];
+                for (var loan in details) {
+                  int cicilan = loan['cicilan_terbayar'] ?? 0;
+                  double angsuran = 0.0;
+                  if (loan['angsuran_per_bulan'] != null) {
+                    if (loan['angsuran_per_bulan'] is String) {
+                      angsuran = double.tryParse(loan['angsuran_per_bulan']) ?? 0.0;
+                    } else if (loan['angsuran_per_bulan'] is num) {
+                      angsuran = (loan['angsuran_per_bulan'] as num).toDouble();
+                    }
+                  }
+                  DateTime startDate = DateTime.parse(loan['tanggal_meminjam']);
+                  for (int i = 0; i < cicilan; i++) {
+                    allPayments.add({
+                      'tanggal_pembayaran': startDate.add(Duration(days: 30 * (i + 1))).toIso8601String(),
+                      'nominal': angsuran,
+                    });
+                  }
+                }
+                allPayments.sort((a, b) => DateTime.parse(b['tanggal_pembayaran'])
+                    .compareTo(DateTime.parse(a['tanggal_pembayaran'])));
+                final latestPayments = allPayments.take(4).toList();
+                String overallStatus = totalSisa > 0 ? "Belum Lunas" : "Lunas";
                 
                 return Padding(
-                  padding: EdgeInsets.only(bottom: index == filteredData.length - 1 ? 20 : 16),
+                  padding: EdgeInsets.only(bottom: index == groupList.length - 1 ? 20 : 16),
                   child: Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -1107,7 +1230,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      jenisPinjaman,
+                                      jenisNama,
                                       style: const TextStyle(
                                         color: Color(0xFF4E342E),
                                         fontSize: 16,
@@ -1123,7 +1246,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
-                                        'ID: $idPinjaman',
+                                        '$count Pinjaman Tergabung',
                                         style: const TextStyle(
                                           color: Color(0xFF757575),
                                           fontSize: 11,
@@ -1138,11 +1261,11 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: _getStatusColor(status),
+                                  color: _getStatusColor(overallStatus),
                                   borderRadius: BorderRadius.circular(12),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: _getStatusColor(status).withOpacity(0.3),
+                                      color: _getStatusColor(overallStatus).withOpacity(0.3),
                                       blurRadius: 4,
                                       offset: Offset(0, 2),
                                     ),
@@ -1152,13 +1275,13 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
-                                      _getStatusIcon(status),
+                                      _getStatusIcon(overallStatus),
                                       size: 12,
                                       color: Colors.white,
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      status,
+                                      overallStatus,
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 10,
@@ -1205,7 +1328,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                                             ),
                                             const SizedBox(width: 6),
                                             Text(
-                                              'Nominal Pinjaman',
+                                              'Total Pinjaman',
                                               style: TextStyle(
                                                 color: Color(0xFF757575),
                                                 fontSize: 12,
@@ -1217,7 +1340,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                                         ),
                                         const SizedBox(height: 6),
                                         Text(
-                                          'Rp ${_formatCurrency(nominal)}',
+                                          'Rp ${_formatCurrency(totalNominal)}',
                                           style: TextStyle(
                                             color: Color(0xFF1976D2),
                                             fontSize: 16,
@@ -1235,7 +1358,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                                             Icon(
                                               Icons.pending_actions,
                                               size: 16,
-                                              color: sisaTagihan > 0 ? Color(0xFFD32F2F) : Color(0xFF4CAF50),
+                                              color: totalSisa > 0 ? Color(0xFFD32F2F) : Color(0xFF4CAF50),
                                             ),
                                             const SizedBox(width: 6),
                                             Text(
@@ -1251,9 +1374,9 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                                         ),
                                         const SizedBox(height: 6),
                                         Text(
-                                          'Rp ${_formatCurrency(sisaTagihan)}',
+                                          'Rp ${_formatCurrency(totalSisa)}',
                                           style: TextStyle(
-                                            color: sisaTagihan > 0 ? Color(0xFFD32F2F) : Color(0xFF4CAF50),
+                                            color: totalSisa > 0 ? Color(0xFFD32F2F) : Color(0xFF4CAF50),
                                             fontSize: 16,
                                             fontFamily: 'Poppins',
                                             fontWeight: FontWeight.w700,
@@ -1263,12 +1386,12 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                                     ),
                                   ],
                                 ),
-                                
-                                // Monthly Payment for Individual Loan
-                                if (sisaTagihan > 0) ...[
+
+                                // Monthly Payment for Group
+                                if (totalSisa > 0) ...[
                                   const SizedBox(height: 16),
                                   Container(
-                                    width: double.infinity,
+                                   width: double.infinity,
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
                                       gradient: LinearGradient(
@@ -1291,14 +1414,14 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                                         Text(
                                           'Tagihan Bulan Ini: ',
                                           style: TextStyle(
-                                            color: Color(0xFF757575),
+color: Color(0xFF757575),
                                             fontSize: 12,
                                             fontFamily: 'Poppins',
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
                                         Text(
-                                          'Rp ${_formatCurrency(monthlyPayment)}',
+                                           'Rp ${_formatCurrency(totalAngsuran)}',
                                           style: TextStyle(
                                             color: Color(0xFFFF9800),
                                             fontSize: 14,
@@ -1367,7 +1490,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                                           ),
                                         ),
                                       ),
-                                      ],
+                                    ],
                                   ),
                                 ] else ...[
                                   const SizedBox(height: 12),
@@ -1390,7 +1513,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          'PINJAMAN LUNAS',
+                                          'SEMUA PINJAMAN LUNAS',
                                           style: TextStyle(
                                             color: Colors.white,
                                             fontSize: 12,
@@ -1406,13 +1529,106 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                               ],
                             ),
                           ),
+
+                          // Detail breakdown section (bisa dikembangkan untuk expandable)
+                          if (totalSisa > 0) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFF2196F3).withOpacity(0.05),
+                                    Colors.white,
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Color(0xFF2196F3).withOpacity(0.2)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.info_outline,
+                                        color: Color(0xFF2196F3),
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Text(
+                                        'Riwayat Pembayaran',
+                                        style: TextStyle(
+                                          color: Color(0xFF2196F3),
+                                          fontSize: 14,
+                                          fontFamily: 'Poppins',
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Color(0xFF2196F3).withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          '${allPayments.length} transaksi',
+                                          style: const TextStyle(
+                                            color: Color(0xFF2196F3),
+                                            fontSize: 11,
+                                            fontFamily: 'Poppins',
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  if (latestPayments.isEmpty) ...[
+                                  const Text(
+                                    "Belum ada pembayaran",
+                                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                                  ),
+                                ] else ...latestPayments.map((pay) {
+                                  final tgl = DateFormat("dd MMM yyyy").format(DateTime.parse(pay['tanggal_pembayaran']));
+                                  final nominal = _formatCurrency(pay['nominal']);
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 6),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          tgl,
+                                          style: const TextStyle(fontSize: 12, color: Color(0xFF757575)),
+                                        ),
+                                        Text(
+                                          "Rp $nominal",
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF4CAF50),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
                   ),
                 );
               },
-              childCount: filteredData.length,
+              childCount: groupedLoans.length,
             ),
           ),
         ),

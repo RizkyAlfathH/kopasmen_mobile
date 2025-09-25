@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:tes/page/history_page.dart';
+import 'package:tes/page/home_page.dart';
 import '../services/api_service.dart';
 import 'package:intl/intl.dart';
 
 class TabunganPage extends StatefulWidget {
   final String nip;
-  final String nama; // Add nama parameter for display
+  final String nama;
 
   const TabunganPage({super.key, required this.nip, this.nama = "User"});
 
@@ -14,10 +16,11 @@ class TabunganPage extends StatefulWidget {
 
 class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderStateMixin {
   List<dynamic> _simpanan = [];
+  List<dynamic> _penarikan = [];
   bool _loading = true;
   late TabController _tabController;
   
-  // Calculated totals
+  // Calculated totals - these now represent the NET amounts after withdrawals
   double _simpananPokok = 0;
   double _simpananWajib = 0;
   double _simpananSukarela = 0;
@@ -27,7 +30,7 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _fetchSimpanan();
+    _fetchAllData();
   }
 
   @override
@@ -36,11 +39,16 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
     super.dispose();
   }
 
-  Future<void> _fetchSimpanan() async {
+  Future<void> _fetchAllData() async {
     try {
-      final data = await ApiService.getSimpanan(widget.nip);
+      final results = await Future.wait([
+        ApiService.getSimpanan(widget.nip),
+        ApiService.getPenarikan(widget.nip),
+      ]);
+      
       setState(() {
-        _simpanan = data;
+        _simpanan = results[0];
+        _penarikan = results[1];
         _calculateTotals();
         _loading = false;
       });
@@ -59,32 +67,107 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
   }
 
   void _calculateTotals() {
-    _simpananPokok = 0;
-    _simpananWajib = 0;
-    _simpananSukarela = 0;
+  double pokok = 0;
+  double wajib = 0;
+  double sukarela = 0;
 
-    for (var item in _simpanan) {
-      final nominal = double.tryParse(item['nominal'].toString()) ?? 0;
-      final jenisNama = item['jenis_simpanan']['nama_jenis'].toString().toLowerCase();
-      
-      if (jenisNama.contains('pokok')) {
-        _simpananPokok += nominal;
-      } else if (jenisNama.contains('wajib')) {
-        _simpananWajib += nominal;
-      } else if (jenisNama.contains('sukarela')) {
-        _simpananSukarela += nominal;
+  // Hitung total setoran per jenis
+  for (var item in _simpanan) {
+    final nominal = double.tryParse(item['nominal'].toString()) ?? 0;
+    final jenisNama = item['jenis_simpanan']['nama_jenis'].toString().toLowerCase();
+
+    if (jenisNama.contains('pokok')) pokok += nominal;
+    else if (jenisNama.contains('wajib')) wajib += nominal;
+    else if (jenisNama.contains('sukarela')) sukarela += nominal;
+  }
+
+  // Kurangi penarikan sesuai jenis
+  for (var item in _penarikan) {
+    final nominal = double.tryParse(item['nominal'].toString()) ?? 0;
+    final jenisNama = item['jenis_simpanan']['nama_jenis'].toString().toLowerCase();
+
+    if (jenisNama.contains('pokok')) pokok -= nominal;
+    else if (jenisNama.contains('wajib')) wajib -= nominal;
+    else if (jenisNama.contains('sukarela')) sukarela -= nominal;
+  }
+
+  // Pastikan tidak negatif
+  _simpananPokok = pokok < 0 ? 0 : pokok;
+  _simpananWajib = wajib < 0 ? 0 : wajib;
+  _simpananSukarela = sukarela < 0 ? 0 : sukarela;
+
+  // Total semua simpanan
+  _totalSimpanan = _simpananPokok + _simpananWajib + _simpananSukarela;
+}
+
+
+  List<Map<String, dynamic>> _getCombinedTransactions(String type) {
+  List<Map<String, dynamic>> combinedTransactions = [];
+
+  // Tambahkan simpanan sesuai jenis
+  for (var item in _simpanan) {
+    final nominal = double.tryParse(item['nominal'].toString()) ?? 0;
+    final jenisNama = item['jenis_simpanan']['nama_jenis'].toString().toLowerCase();
+
+    if (jenisNama.contains(type)) {
+      combinedTransactions.add({
+        'type': 'simpanan',
+        'data': item,
+        'date_field': 'tanggal_simpanan',
+        'nominal': nominal,
+        'is_positive': true,
+        'title': 'Setoran Simpanan ${type[0].toUpperCase()}${type.substring(1)}',
+        'description': 'Setoran simpanan $type',
+      });
+    }
+  }
+
+  // Tambahkan penarikan sesuai jenis
+  for (var item in _penarikan) {
+    final nominal = double.tryParse(item['nominal'].toString()) ?? 0;
+    final jenisNama = item['jenis_simpanan']['nama_jenis'].toString().toLowerCase();
+
+    if (jenisNama.contains(type)) {
+      combinedTransactions.add({
+        'type': 'penarikan',
+        'data': item,
+        'date_field': 'tanggal_penarikan',
+        'nominal': nominal,
+        'is_positive': false,
+        'title': 'Penarikan Simpanan ${type[0].toUpperCase()}${type.substring(1)}',
+        'description': 'Penarikan dana simpanan $type',
+      });
+    }
+  }
+
+  // Urutkan berdasarkan tanggal terbaru
+  combinedTransactions.sort((a, b) {
+    DateTime parseDate(String dateStr) {
+      try {
+        if (dateStr.contains('T')) return DateTime.parse(dateStr);
+        if (dateStr.contains('-') && dateStr.length >= 10) {
+          return DateTime.parse(dateStr.substring(0, 10));
+        }
+        if (dateStr.contains('/')) {
+          final parts = dateStr.split('/');
+          if (parts.length == 3) {
+            return DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+          }
+        }
+        return DateTime(1900);
+      } catch (_) {
+        return DateTime(1900);
       }
     }
-    
-    _totalSimpanan = _simpananPokok + _simpananWajib + _simpananSukarela;
-  }
 
-  List<dynamic> _getFilteredSimpanan(String type) {
-    return _simpanan.where((item) {
-      final jenisNama = item['jenis_simpanan']['nama_jenis'].toString().toLowerCase();
-      return jenisNama.contains(type.toLowerCase());
-    }).toList();
-  }
+    final dateA = parseDate(a['data'][a['date_field']].toString());
+    final dateB = parseDate(b['data'][b['date_field']].toString());
+    return dateB.compareTo(dateA);
+  });
+
+  return combinedTransactions.take(3).toList();
+}
+
 
   IconData _getIconForType(String type) {
     switch (type.toLowerCase()) {
@@ -148,7 +231,19 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                     backgroundColor: const Color(0xFFFFDC16),
                     elevation: 0,
                     leading: GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
+                      onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => HomePage(
+                                user: {
+                                  'nip': widget.nip,
+                                  'nama': widget.nama,
+                                },
+                              ),
+                            ),
+                          );
+                        },
                       child: Container(
                         margin: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -462,7 +557,7 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                     ),
                   ),
 
-                  // Tab Content - FIXED: Wrap with Flexible instead of Expanded
+                  // Tab Content
                   Flexible(
                     child: TabBarView(
                       controller: _tabController,
@@ -520,54 +615,14 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
   }
 
   Widget _buildTabContent(String type) {
-    final filteredData = _getFilteredSimpanan(type);
+    final combinedTransactions = _getCombinedTransactions(type);
+    
+    // Get the gross deposit amount for this type (before withdrawals)
     final total = type == 'pokok' ? _simpananPokok : 
                   type == 'wajib' ? _simpananWajib : _simpananSukarela;
 
-    if (filteredData.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Color(0xFFE0E0E0),
-                borderRadius: BorderRadius.circular(50),
-              ),
-              child: Icon(
-                _getIconForType(type),
-                size: 48,
-                color: Color(0xFF9E9E9E),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Belum ada data simpanan ${type}',
-              style: TextStyle(
-                color: Color(0xFF9E9E9E),
-                fontSize: 16,
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Data akan muncul setelah Anda melakukan simpanan',
-              style: TextStyle(
-                color: Color(0xFFBDBDBD),
-                fontSize: 14,
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w400,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    }
+    
 
-    // FIXED: Use CustomScrollView instead of SingleChildScrollView with ListView
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
@@ -660,7 +715,7 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '${filteredData.length} transaksi',
+                          '${combinedTransactions.length} transaksi terbaru',
                           style: TextStyle(
                             color: _getColorForType(type).withOpacity(0.7),
                             fontSize: 14,
@@ -679,7 +734,7 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                 Row(
                   children: [
                     Text(
-                      'Riwayat Transaksi',
+                      'Transaksi Terbaru',
                       style: TextStyle(
                         color: Color(0xFF4E342E),
                         fontSize: 16,
@@ -695,7 +750,7 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '${filteredData.length} item',
+                        '3 terbaru',
                         style: TextStyle(
                           color: _getColorForType(type),
                           fontSize: 12,
@@ -707,23 +762,73 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                   ],
                 ),
 
+                // Show all transactions link
+                Padding(
+                  padding: const EdgeInsets.only(top: 12, bottom: 4),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(6),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => HistoryPage(
+                                nip: widget.nip,
+                                nama: widget.nama,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Lihat semua transaksi',
+                                style: TextStyle(
+                                  color: _getColorForType(type),
+                                  fontSize: 13,
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                              SizedBox(width: 4),
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                color: _getColorForType(type),
+                                size: 12,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
                 const SizedBox(height: 16),
               ],
             ),
           ),
         ),
         
-        // FIXED: Use SliverList for the transaction items
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
-                final item = filteredData[index];
-                final amount = double.tryParse(item['nominal'].toString()) ?? 0;
+                final transaction = combinedTransactions[index];
+                final item = transaction['data'];
+                final amount = transaction['nominal'];
+                final isPositive = transaction['is_positive'];
                 
                 return Padding(
-                  padding: EdgeInsets.only(bottom: index == filteredData.length - 1 ? 20 : 12),
+                  padding: EdgeInsets.only(bottom: index == combinedTransactions.length - 1 ? 20 : 12),
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -744,21 +849,26 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                         height: 48,
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [
+                            colors: isPositive ? [
                               _getColorForType(type),
                               _getColorForType(type).withOpacity(0.7),
+                            ] : [
+                              Colors.red[400]!,
+                              Colors.red[600]!,
                             ],
                           ),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
-                          _getIconForType(type),
+                          transaction['type'] == 'penarikan' 
+                              ? Icons.money_off 
+                              : _getIconForType(type),
                           color: Colors.white,
                           size: 24,
                         ),
                       ),
                       title: Text(
-                        item['jenis_simpanan']['nama_jenis'],
+                        transaction['title'],
                         style: const TextStyle(
                           color: Color(0xFF4E342E),
                           fontSize: 15,
@@ -777,14 +887,19 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              item['tanggal_menyimpan'],
-                              style: const TextStyle(
-                                color: Color(0xFF757575),
-                                fontSize: 13,
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
+  item['type'] == 'withdraw'
+      ? 'Penarikan'
+      : item['type'] == 'deposit'
+          ? 'Simpanan'
+          : 'Transaksi',
+  style: const TextStyle(
+    color: Color(0xFF757575),
+    fontSize: 13,
+    fontFamily: 'Poppins',
+    fontWeight: FontWeight.w400,
+  ),
+)
+
                           ],
                         ),
                       ),
@@ -793,10 +908,10 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            "Rp ${_formatCurrency(amount)}",
+                            "${isPositive ? '+' : '-'} Rp ${_formatCurrency(amount)}",
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              color: _getColorForType(type),
+                              color: isPositive ? _getColorForType(type) : Colors.red[600],
                               fontSize: 16,
                               fontFamily: 'Poppins',
                             ),
@@ -805,11 +920,11 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Color(0xFF4CAF50),
+                              color: isPositive ? Color(0xFF4CAF50) : Colors.orange[600],
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              'Berhasil',
+                              isPositive ? 'Masuk' : 'Keluar',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
@@ -824,7 +939,7 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                   ),
                 );
               },
-              childCount: filteredData.length,
+              childCount: combinedTransactions.length, 
             ),
           ),
         ),
