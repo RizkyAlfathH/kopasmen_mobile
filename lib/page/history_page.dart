@@ -65,6 +65,7 @@ class _HistoryPageState extends State<HistoryPage> {
       await Future.wait([
         _fetchSimpananData(),
         _fetchPenarikanData(),
+        _fetchPenarikanData(),
         _fetchPinjamanData(),
       ]);
       _processTransactionData();
@@ -110,6 +111,7 @@ class _HistoryPageState extends State<HistoryPage> {
     }
   }
 
+
   void _processTransactionData() {
     List<TransactionItem> processedTransactions = [];
 
@@ -133,20 +135,21 @@ class _HistoryPageState extends State<HistoryPage> {
       ));
     }
 
-    // Penarikan → masuk ke simpanan
+    // Penarikan
     for (var item in _penarikanData) {
       final amount = double.tryParse(item['nominal'].toString()) ?? 0;
       final tanggal = item['tanggal_penarikan'].toString();
+      final jenisNama = item['jenis_simpanan']['nama_jenis'].toString();
 
       processedTransactions.add(TransactionItem(
         id: '${widget.nip}penarikan${item['id']}',
-        title: 'Penarikan',
-        description: 'Penarikan dana - ${widget.nama}',
+        title: 'Penarikan $jenisNama',
+        description: 'Penarikan $jenisNama  - ${widget.nama}',
         amount: '- Rp ${_formatCurrency(amount)}',
         date: _formatDate(tanggal),
         time: _extractTime(tanggal),
         isPositive: false,
-        type: 'simpanan', // tetap simpanan
+        type: 'simpanan',
         userNip: widget.nip,
         rawData: item,
       ));
@@ -158,12 +161,25 @@ class _HistoryPageState extends State<HistoryPage> {
       final jenisNama = item['jenis_pinjaman']?['nama_jenis']?.toString() ?? 'Pinjaman';
       final tanggal = item['tanggal_meminjam'].toString();
 
-      // Transaksi pencairan pinjaman
+      // Pencairan pinjaman
       processedTransactions.add(TransactionItem(
         id: '${widget.nip}pinjaman${item['id_pinjaman']}',
-        title: 'Pinjaman $jenisNama',
+        title: 'Riwayat Pinjaman $jenisNama',
         description: 'Pinjaman $jenisNama - ${widget.nama}',
-        amount: '+ Rp ${_formatCurrency(amount)}',
+        amount: 'Rp ${_formatCurrency(amount)}',
+        date: _formatDate(tanggal),
+        time: _extractTime(tanggal),
+        isPositive: true, 
+        type: 'pinjaman',
+        userNip: widget.nip,
+        rawData: item,
+      ));
+
+      processedTransactions.add(TransactionItem(
+        id: '${widget.nip}pinjaman${item['id_pinjaman']}',
+        title: 'Pembayaran $jenisNama',
+        description: 'Pinjaman $jenisNama - ${widget.nama}',
+        amount: 'Rp ${_formatCurrency(amount)}',
         date: _formatDate(tanggal),
         time: _extractTime(tanggal),
         isPositive: true,
@@ -172,7 +188,7 @@ class _HistoryPageState extends State<HistoryPage> {
         rawData: item,
       ));
 
-      // Riwayat angsuran
+      // Riwayat angsuran (pembayaran cicilan)
       if (item['angsuran'] != null && item['angsuran'] is List) {
         List<dynamic> angsuranList = item['angsuran'];
         for (var angsuran in angsuranList) {
@@ -181,12 +197,12 @@ class _HistoryPageState extends State<HistoryPage> {
 
           processedTransactions.add(TransactionItem(
             id: '${widget.nip}angsuran${angsuran['id']}',
-            title: 'Angsuran $jenisNama',
-            description: 'Pembayaran cicilan $jenisNama - ${widget.nama}',
-            amount: '- Rp ${_formatCurrency(angsuranAmount)}',
+            title: 'Pembayaran Angsuran $jenisNama',
+            description: 'Cicilan $jenisNama - ${widget.nama}',
+            amount: 'Rp ${_formatCurrency(angsuranAmount)}', // tanpa minus
             date: _formatDate(angsuranTanggal),
             time: _extractTime(angsuranTanggal),
-            isPositive: false,
+            isPositive: false, // abaikan, styling nanti di card
             type: 'pinjaman',
             userNip: widget.nip,
             rawData: angsuran,
@@ -195,16 +211,14 @@ class _HistoryPageState extends State<HistoryPage> {
       }
     }
 
-    // Sort by tanggal terbaru
+    // Sort by date terbaru
     processedTransactions.sort((a, b) {
       try {
         final dateA = DateTime.parse(a.rawData['tanggal_menyimpan'] ??
-            a.rawData['tanggal_penarikan'] ??
             a.rawData['tanggal_meminjam'] ??
             a.rawData['tanggal_bayar'] ??
             DateTime.now().toString());
         final dateB = DateTime.parse(b.rawData['tanggal_menyimpan'] ??
-            b.rawData['tanggal_penarikan'] ??
             b.rawData['tanggal_meminjam'] ??
             b.rawData['tanggal_bayar'] ??
             DateTime.now().toString());
@@ -222,20 +236,25 @@ class _HistoryPageState extends State<HistoryPage> {
   List<TransactionItem> get filteredTransactions {
     List<TransactionItem> filtered = transactions;
 
-    // Filter by tab
+    // Tab filter
     final currentTabType = tabs[selectedTab].toLowerCase();
     filtered = filtered.where((transaction) {
       return transaction.type == currentTabType;
     }).toList();
 
-    // Filter search
+    // Search (title, description, date)
     if (searchQuery.isNotEmpty) {
       filtered = filtered.where((transaction) {
         final q = searchQuery.toLowerCase();
         return transaction.title.toLowerCase().contains(q) ||
-            transaction.description.toLowerCase().contains(q) ||
-            transaction.date.toLowerCase().contains(q);
+              transaction.description.toLowerCase().contains(q) ||
+              transaction.date.toLowerCase().contains(q);
       }).toList();
+    }
+
+    // Ambil hanya 5 terakhir
+    if (filtered.length > 5) {
+      filtered = filtered.sublist(0, 5);
     }
 
     return filtered;
@@ -304,7 +323,7 @@ class _HistoryPageState extends State<HistoryPage> {
 
   Widget _buildHeader() {
     return Container(
-      height: 100,
+      height: 100, // Increased height for better visual balance
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -327,7 +346,10 @@ class _HistoryPageState extends State<HistoryPage> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => HomePage(
-                        user: {'nip': widget.nip, 'nama': widget.nama},
+                        user: {
+                          'nip': widget.nip,
+                          'nama': widget.nama,
+                        },
                       ),
                     ),
                   );
@@ -736,6 +758,7 @@ class _HistoryPageState extends State<HistoryPage> {
                         fontSize: 12,
                       ),
                     ),
+                    // Only show time if it's not "00:00"
                     if (transaction.time != '00:00') ...[
                       const SizedBox(width: 10),
                       const Icon(Icons.access_time,
@@ -757,7 +780,9 @@ class _HistoryPageState extends State<HistoryPage> {
           Text(
             transaction.amount,
             style: TextStyle(
-              color: transaction.isPositive ? Colors.green[700] : Colors.red,
+              color: (transaction.type == 'pinjaman')
+                  ? const Color(0xFF4E342E) // netral coklat untuk pinjaman & pembayaran
+                  : (transaction.isPositive ? Colors.green[700] : Colors.red),
               fontSize: 14,
               fontWeight: FontWeight.bold,
             ),

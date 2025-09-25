@@ -50,14 +50,13 @@ class _LoginPageState extends State<LoginPage> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              const Color(0xFFF5C842),
               const Color(0xFFFFD700),
-              const Color(0xFFF5C842).withOpacity(0.9),
-              const Color(0xFFFFD700).withOpacity(0.8),
+              const Color(0xFFFFC107),
+              const Color(0xFFF5C842),
             ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            stops: const [0.0, 0.3, 0.7, 1.0],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: const [0.0, 0.5, 1.0],
           ),
         ),
         child: SafeArea(
@@ -66,129 +65,127 @@ class _LoginPageState extends State<LoginPage> {
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
                 children: [
-                  const SizedBox(height: 80),
+                  const SizedBox(height: 60),
                   
-                  // Profile icon dengan gradasi
+                  // Logo SMEA Negeri dengan background putih bersih
                   Container(
-                    width: 120,
-                    height: 120,
+                    width: 160,
+                    height: 160,
                     decoration: BoxDecoration(
-                      gradient: RadialGradient(
-                        colors: [
-                          Colors.white,
-                          Colors.white.withOpacity(0.95),
-                          Colors.white.withOpacity(0.85),
-                        ],
-                        stops: const [0.0, 0.7, 1.0],
-                      ),
+                      color: Colors.white,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.white.withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                        BoxShadow(
                           color: Colors.black.withOpacity(0.1),
-                          blurRadius: 15,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.account_circle,
-                      size: 100,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 30),
-                  
-                  // Title dengan shadow
-                  Container(
-                    child: Column(
-                      children: [
-                        Text(
-                          "KOPASMEN",
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                        ),
-                        
-                        const SizedBox(height: 8),
-                        
-                        Text(
-                          "Koperasi Pegawai SMEA Negeri",
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Colors.black.withOpacity(0.7),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 50),
-                  
-                  // Login form card dengan gradient dan glassmorphism
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.white.withOpacity(0.95),
-                          Colors.white.withOpacity(0.90),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.white.withOpacity(0.25),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
+                          color: Colors.white.withOpacity(0.8),
+                          blurRadius: 15,
+                          offset: const Offset(0, -5),
                         ),
                       ],
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(28),
+                      padding: const EdgeInsets.all(25.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                        ),
+                        child: Image.asset(
+                          'assets/images/logo_smea.jpg',
+                          width: 110,
+                          height: 110,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            // Fallback jika gambar tidak ditemukan
+                            return Container(
+                              width: 110,
+                              height: 110,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.grey[300]!,
+                                  width: 2,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.school,
+                                size: 50,
+                                color: Colors.grey,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 40),
+                  
+                  // Title dengan typography yang lebih baik
+                  Column(
+                    children: [
+                      Text(
+                        "KOPASMEN",
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                          letterSpacing: 2.0,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 8),
+                      
+                      Text(
+                        "Koperasi Pegawai SMEA Negeri",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.black.withOpacity(0.75),
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 50),
+                  
+                  // Login form card yang lebih rapi
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(25),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 25,
+                          offset: const Offset(0, 10),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Login title
-                          const Text(
-                            "Login",
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          
-                          const SizedBox(height: 32),
-                          
-                          // Nomor Anggota field
-                          const Text(
+                          Text(
                             "Nomor Anggota",
                             style: TextStyle(
                               fontSize: 15,
@@ -196,25 +193,18 @@ class _LoginPageState extends State<LoginPage> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 12),
                           Container(
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.grey[50]!,
-                                  Colors.grey[100]!,
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(16),
+                              color: Colors.grey[50],
+                              borderRadius: BorderRadius.circular(15),
                               border: Border.all(
                                 color: Colors.grey.withOpacity(0.2),
                                 width: 1,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
+                                  color: Colors.black.withOpacity(0.03),
                                   blurRadius: 8,
                                   offset: const Offset(0, 2),
                                 ),
@@ -222,15 +212,17 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             child: TextField(
                               controller: _nomorAnggotaController,
+                              keyboardType: TextInputType.number,
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w500,
                               ),
                               decoration: InputDecoration(
-                                hintText: "Masukkan Nomor Anggota   ...",
+                                hintText: "Masukkan nomor anggota",
                                 hintStyle: TextStyle(
                                   color: Colors.grey[400],
                                   fontSize: 14,
+                                  fontWeight: FontWeight.w400,
                                 ),
                                 prefixIcon: Container(
                                   padding: const EdgeInsets.all(12),
@@ -249,10 +241,10 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                           
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 25),
                           
                           // Password field
-                          const Text(
+                          Text(
                             "Password",
                             style: TextStyle(
                               fontSize: 15,
@@ -260,25 +252,18 @@ class _LoginPageState extends State<LoginPage> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 12),
                           Container(
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.grey[50]!,
-                                  Colors.grey[100]!,
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(16),
+                              color: Colors.grey[50],
+                              borderRadius: BorderRadius.circular(15),
                               border: Border.all(
                                 color: Colors.grey.withOpacity(0.2),
                                 width: 1,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
+                                  color: Colors.black.withOpacity(0.03),
                                   blurRadius: 8,
                                   offset: const Offset(0, 2),
                                 ),
@@ -292,10 +277,11 @@ class _LoginPageState extends State<LoginPage> {
                                 fontWeight: FontWeight.w500,
                               ),
                               decoration: InputDecoration(
-                                hintText: "Masukkan Password...",
+                                hintText: "Masukkan password",
                                 hintStyle: TextStyle(
                                   color: Colors.grey[400],
                                   fontSize: 14,
+                                  fontWeight: FontWeight.w400,
                                 ),
                                 prefixIcon: Container(
                                   padding: const EdgeInsets.all(12),
@@ -314,18 +300,18 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                           
-                          const SizedBox(height: 30),
+                          const SizedBox(height: 35),
                           
                           // Error message
                           if (_error != null)
                             Container(
                               margin: const EdgeInsets.only(bottom: 20),
-                              padding: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(15),
                               decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.red.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: Colors.red.withOpacity(0.3),
+                                  color: Colors.red.withOpacity(0.2),
                                 ),
                               ),
                               child: Row(
@@ -333,15 +319,15 @@ class _LoginPageState extends State<LoginPage> {
                                   Icon(
                                     Icons.error_outline,
                                     color: Colors.red[600],
-                                    size: 16,
+                                    size: 18,
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
                                       _error!,
                                       style: TextStyle(
                                         color: Colors.red[600],
-                                        fontSize: 13,
+                                        fontSize: 14,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -350,23 +336,23 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             ),
                           
-                          // Login button dengan gradient
+                          // Login button dengan desain yang konsisten
                           SizedBox(
                             width: double.infinity,
                             child: Container(
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   colors: [
-                                    const Color(0xFFF5C842),
                                     const Color(0xFFFFD700),
+                                    const Color(0xFFF5C842),
                                   ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(15),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFFF5C842).withOpacity(0.4),
+                                    color: const Color(0xFFFFD700).withOpacity(0.3),
                                     blurRadius: 15,
                                     offset: const Offset(0, 6),
                                   ),
@@ -379,7 +365,7 @@ class _LoginPageState extends State<LoginPage> {
                                   shadowColor: Colors.transparent,
                                   padding: const EdgeInsets.symmetric(vertical: 18),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(15),
                                   ),
                                 ),
                                 child: _loading
@@ -394,18 +380,19 @@ class _LoginPageState extends State<LoginPage> {
                                         ),
                                       )
                                     : const Text(
-                                        "Login",
+                                        "Masuk",
                                         style: TextStyle(
                                           fontSize: 17,
                                           fontWeight: FontWeight.bold,
                                           color: Colors.black87,
+                                          letterSpacing: 0.5,
                                         ),
                                       ),
                               ),
                             ),
                           ),
                           
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 25),
                           
                           // Forgot password button
                           Center(
@@ -421,11 +408,11 @@ class _LoginPageState extends State<LoginPage> {
                               style: TextButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 20,
-                                  vertical: 10,
+                                  vertical: 12,
                                 ),
                               ),
                               child: const Text(
-                                "Forgot Password ?",
+                                "Lupa Password?",
                                 style: TextStyle(
                                   color: Colors.blue,
                                   fontSize: 15,
@@ -439,7 +426,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   
-                  const SizedBox(height: 50),
+                  const SizedBox(height: 40),
                 ],
               ),
             ),

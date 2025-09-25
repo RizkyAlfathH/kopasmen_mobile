@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // Kalau di emulator Android ganti 127.0.0.1 jadi 10.0.2.2
   static const String baseUrl = "http://127.0.0.1:8000/api";
 
   // ======================
@@ -15,7 +14,7 @@ class ApiService {
     String password,
   ) async {
     final url = Uri.parse("$baseUrl/login/");
-    try {
+    try { 
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},

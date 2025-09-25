@@ -86,41 +86,122 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
                 children: [
-                  const SizedBox(height: 80),
+                  const SizedBox(height: 20),
+
+                  // Back button
+                  Row(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.white.withOpacity(0.9),
+                              Colors.white.withOpacity(0.8),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.white.withOpacity(0.3),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: IconButton(
+                          icon: const Icon(
+                            Icons.arrow_back_ios_new,
+                            color: Colors.black87,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            Navigator.pushReplacementNamed(context, '/login');
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Text(
+                        "Kembali ke Login",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 40),
 
                   // Icon reset password
                   Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      gradient: RadialGradient(
-                        colors: [
-                          Colors.white,
-                          Colors.white.withOpacity(0.95),
-                          Colors.white.withOpacity(0.85),
-                        ],
-                        stops: const [0.0, 0.7, 1.0],
-                      ),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.white.withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 15,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.lock_reset,
-                      size: 90,
-                      color: Colors.grey,
-                    ),
-                  ),
+  width: 160,
+  height: 160,
+  decoration: BoxDecoration(
+    color: Colors.white,
+    shape: BoxShape.circle,
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.1),
+        blurRadius: 20,
+        offset: const Offset(0, 8),
+      ),
+      BoxShadow(
+        color: Colors.white.withOpacity(0.8),
+        blurRadius: 15,
+        offset: const Offset(0, -5),
+      ),
+    ],
+  ),
+  child: Padding(
+    padding: const EdgeInsets.all(25.0),
+    child: Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+      ),
+      child: Image.asset(
+        'assets/images/logo_smea.jpg',
+        width: 110,
+        height: 110,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: 110,
+            height: 110,
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.grey[300]!,
+                width: 2,
+              ),
+            ),
+            child: const Icon(
+              Icons.school,
+              size: 50,
+              color: Colors.grey,
+            ),
+          );
+        },
+      ),
+    ),
+  ),
+),
+
 
                   const SizedBox(height: 30),
 

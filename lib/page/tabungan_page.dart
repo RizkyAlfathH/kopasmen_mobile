@@ -887,18 +887,18 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                             ),
                             const SizedBox(width: 6),
                             Text(
-  item['type'] == 'withdraw'
-      ? 'Penarikan'
-      : item['type'] == 'deposit'
-          ? 'Simpanan'
-          : 'Transaksi',
-  style: const TextStyle(
-    color: Color(0xFF757575),
-    fontSize: 13,
-    fontFamily: 'Poppins',
-    fontWeight: FontWeight.w400,
-  ),
-)
+                              item['type'] == 'withdraw'
+                                  ? 'Penarikan'
+                                  : item['type'] == 'deposit'
+                                      ? 'Simpanan'
+                                      : 'Transaksi',
+                              style: const TextStyle(
+                                color: Color(0xFF757575),
+                                fontSize: 13,
+                                fontFamily: 'Poppins',
+                                fontWeight: FontWeight.w400,
+                              ),
+                            )
 
                           ],
                         ),
