@@ -190,6 +190,46 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
     return monthNames[now.month - 1];
   }
 
+  // MODIFIED: Fungsi untuk mengelompokkan pinjaman berdasarkan jenis
+  Map<String, Map<String, dynamic>> _getGroupedPinjaman(String type) {
+    final filteredData = _getFilteredPinjaman(type);
+    Map<String, Map<String, dynamic>> groupedLoans = {};
+    
+    for (var pinjaman in filteredData) {
+      final jenisNama = pinjaman['jenis_pinjaman']?['nama_jenis']?.toString() ?? "Tidak diketahui";
+      
+      if (groupedLoans.containsKey(jenisNama)) {
+        // Tambahkan ke grup yang sudah ada
+        final existing = groupedLoans[jenisNama]!;
+        existing['count'] = (existing['count'] as int) + 1;
+        existing['total_nominal'] = (existing['total_nominal'] as double) + 
+          (double.tryParse((pinjaman['jumlah_pinjaman'] ?? pinjaman['nominal'] ?? "0").toString()) ?? 0);
+        existing['total_sisa'] = (existing['total_sisa'] as double) + 
+          (double.tryParse(pinjaman['sisa_pinjaman'].toString()) ?? 0);
+        existing['total_angsuran'] = (existing['total_angsuran'] as double) + 
+          ((double.tryParse(pinjaman['angsuran_per_bulan'].toString()) ?? 0) + 
+           (double.tryParse(pinjaman['jasa_rupiah'].toString()) ?? 0));
+        
+        // Simpan detail pinjaman untuk ditampilkan jika diperlukan
+        (existing['details'] as List).add(pinjaman);
+      } else {
+        // Buat grup baru
+        groupedLoans[jenisNama] = {
+          'jenis_nama': jenisNama,
+          'count': 1,
+          'total_nominal': double.tryParse((pinjaman['jumlah_pinjaman'] ?? pinjaman['nominal'] ?? "0").toString()) ?? 0,
+          'total_sisa': double.tryParse(pinjaman['sisa_pinjaman'].toString()) ?? 0,
+          'total_angsuran': (double.tryParse(pinjaman['angsuran_per_bulan'].toString()) ?? 0) + 
+                           (double.tryParse(pinjaman['jasa_rupiah'].toString()) ?? 0),
+          'details': [pinjaman],
+          'status': pinjaman['status']?.toString() ?? "-",
+        };
+      }
+    }
+    
+    return groupedLoans;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -672,8 +712,10 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
     );
   }
 
+  // MODIFIED: Fungsi utama yang diubah untuk menampilkan pinjaman yang dikelompokkan
   Widget _buildTabContent(String type) {
     final filteredData = _getFilteredPinjaman(type);
+    final groupedLoans = _getGroupedPinjaman(type);
     final totalPinjaman = type == 'reguler' ? totalPinjamanReguler : 
                          type == 'khusus' ? totalPinjamanKhusus : totalPinjamanBarang;
     final totalSisaPinjaman = type == 'reguler' ? totalSisaPinjamanReguler : 
@@ -727,22 +769,14 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
       );
     }
 
-      double totalTagihanBulanan = 0;
+    // Hitung total tagihan bulanan dari semua grup
+    double totalTagihanBulanan = 0;
+    groupedLoans.values.forEach((group) {
+      totalTagihanBulanan += group['total_angsuran'] as double;
+    });
 
-    for (var pinjaman in filteredData) {
-      final angsuranPokok = double.tryParse(
-        pinjaman['angsuran_per_bulan'].toString()
-      ) ?? 0;
-
-      final jasa = double.tryParse(
-        pinjaman['jasa_rupiah'].toString()
-      ) ?? 0;
-
-      totalTagihanBulanan += angsuranPokok + jasa;
-    }
     return CustomScrollView(
       slivers: [
-
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -988,7 +1022,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                         
                         const SizedBox(height: 16),
                         Text(
-                          '${filteredData.length} pinjaman terdaftar',
+                          '${groupedLoans.length} jenis pinjaman (${filteredData.length} total transaksi)',
                           style: TextStyle(
                             color: _getColorForType(type).withOpacity(0.7),
                             fontSize: 14,
@@ -1007,7 +1041,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                 Row(
                   children: [
                     Text(
-                      'Riwayat Transaksi',
+                      'Ringkasan Pinjaman',
                       style: TextStyle(
                         color: Color(0xFF4E342E),
                         fontSize: 16,
@@ -1029,7 +1063,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                         border: Border.all(color: _getColorForType(type).withOpacity(0.3)),
                       ),
                       child: Text(
-                        '${filteredData.length} item',
+                        '${groupedLoans.length} grup',
                         style: TextStyle(
                           color: _getColorForType(type),
                           fontSize: 12,
@@ -1041,7 +1075,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                   ],
                 ),
 
-                  Padding(
+                Padding(
                   padding: const EdgeInsets.only(top: 12, bottom: 4),
                   child: Align(
                     alignment: Alignment.centerLeft,
@@ -1052,7 +1086,12 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => FigmaToCodeApp()),
+                            MaterialPageRoute(
+                              builder: (context) => HistoryPage(
+                                nip: widget.nip,
+                                nama: widget.nama,
+                              ),
+                            ),
                           );
                         },
                         child: Padding(
@@ -1061,7 +1100,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'Lihat semua transaksi',
+                                'Lihat detail transaksi',
                                 style: TextStyle(
                                   color: _getColorForType(type),
                                   fontSize: 13,
@@ -1089,288 +1128,207 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
           ),
         ),
         
-        // Loan List
+        // Grouped Loan List - INI YANG BARU: Menampilkan grup pinjaman, bukan individual
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
-                // Ambil hanya 3 transaksi terakhir
-                final limitedData = filteredData.take(3).toList();
-                final pinjaman = limitedData[index];
-                final idPinjaman = pinjaman['id_pinjaman']?.toString() ?? "-";
-                final jenisPinjaman = pinjaman['jenis_pinjaman']?['nama_jenis']?.toString() ?? "Tidak diketahui";
-                final nominal = double.tryParse(
-                  (pinjaman['jumlah_pinjaman'] ?? pinjaman['nominal'] ?? "0").toString()
-                ) ?? 0;
-                final sisaTagihan = double.tryParse(pinjaman['sisa_pinjaman'].toString()) ?? 0;
-                final totalTerbayar = nominal - sisaTagihan;
-                final status = pinjaman['status']?.toString() ?? "-";
-                final progress = nominal > 0 ? ((nominal - sisaTagihan) / nominal).clamp(0.0, 1.0) : 0.0;
-                final angsuranPokok = double.tryParse(
-                  pinjaman['angsuran_per_bulan'].toString()
-                ) ?? 0;
-                final jasa = double.tryParse(
-                  pinjaman['jasa_rupiah'].toString()
-                ) ?? 0;
-                final angsuranBulanan = angsuranPokok + jasa;
-                
-                // Data pembayaran (contoh - sesuaikan dengan struktur data Anda)
-                final riwayatPembayaran = pinjaman['riwayat_pembayaran'] as List? ?? [];
-                final pembayaranTerakhir = riwayatPembayaran.isNotEmpty 
-                    ? double.tryParse(riwayatPembayaran.last['jumlah'].toString()) ?? 0
-                    : 0;
-                final tanggalPembayaranTerakhir = riwayatPembayaran.isNotEmpty 
-                    ? riwayatPembayaran.last['tanggal']?.toString() ?? "-"
-                    : "-";
+                final groupList = groupedLoans.values.toList();
+                final group = groupList[index];
+                final jenisNama = group['jenis_nama'] as String;
+                final count = group['count'] as int;
+                final totalNominal = group['total_nominal'] as double;
+                final totalSisa = group['total_sisa'] as double;
+                final totalAngsuran = group['total_angsuran'] as double;
+                final progress = totalNominal > 0
+                    ? ((totalNominal - totalSisa) / totalNominal).clamp(0.0, 1.0)
+                    : 0.0;
+                final details = group['details'] as List;
+                List<Map<String, dynamic>> allPayments = [];
+                for (var loan in details) {
+                  int cicilan = loan['cicilan_terbayar'] ?? 0;
+                  double angsuran = 0.0;
+                  if (loan['angsuran_per_bulan'] != null) {
+                    if (loan['angsuran_per_bulan'] is String) {
+                      angsuran = double.tryParse(loan['angsuran_per_bulan']) ?? 0.0;
+                    } else if (loan['angsuran_per_bulan'] is num) {
+                      angsuran = (loan['angsuran_per_bulan'] as num).toDouble();
+                    }
+                  }
+                  DateTime startDate = DateTime.parse(loan['tanggal_meminjam']);
+                  for (int i = 0; i < cicilan; i++) {
+                    allPayments.add({
+                      'tanggal_pembayaran': startDate.add(Duration(days: 30 * (i + 1))).toIso8601String(),
+                      'nominal': angsuran,
+                    });
+                  }
+                }
+                allPayments.sort((a, b) => DateTime.parse(b['tanggal_pembayaran'])
+                    .compareTo(DateTime.parse(a['tanggal_pembayaran'])));
+                final latestPayments = allPayments.take(4).toList();
+                String overallStatus = totalSisa > 0 ? "Belum Lunas" : "Lunas";
                 
                 return Padding(
-                  padding: EdgeInsets.only(bottom: index == limitedData.length - 1 ? 20 : 16),
-                  child: Column(
-                    children: [
-                      // CARD UTAMA - INFORMASI PINJAMAN
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Colors.white,
-                              Color(0xFFFDFDFD),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Color(0x0F000000),
-                              blurRadius: 12,
-                              offset: Offset(0, 4),
-                              spreadRadius: 0,
-                            ),
-                          ],
+                  padding: EdgeInsets.only(bottom: index == groupList.length - 1 ? 20 : 16),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white,
+                          Color(0xFFFDFDFD),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0x0F000000),
+                          blurRadius: 12,
+                          offset: Offset(0, 4),
+                          spreadRadius: 0,
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                      ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Header Row
+                          Row(
                             children: [
-                              // Header Row
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 50,
-                                    height: 50,
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          _getColorForType(type),
-                                          _getColorForType(type).withOpacity(0.8),
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: _getColorForType(type).withOpacity(0.3),
-                                          blurRadius: 8,
-                                          offset: Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Icon(
-                                      _getIconForType(type),
-                                      color: Colors.white,
-                                      size: 24,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          jenisPinjaman,
-                                          style: const TextStyle(
-                                            color: Color(0xFF4E342E),
-                                            fontSize: 16,
-                                            fontFamily: 'Poppins',
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                          decoration: BoxDecoration(
-                                            color: Color(0xFFF5F5F5),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: Text(
-                                            'ID: $idPinjaman',
-                                            style: const TextStyle(
-                                              color: Color(0xFF757575),
-                                              fontSize: 11,
-                                              fontFamily: 'Poppins',
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: _getStatusColor(status),
-                                      borderRadius: BorderRadius.circular(12),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: _getStatusColor(status).withOpacity(0.3),
-                                          blurRadius: 4,
-                                          offset: Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          _getStatusIcon(status),
-                                          size: 12,
-                                          color: Colors.white,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          status,
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontFamily: 'Poppins',
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              
-                              const SizedBox(height: 20),
-                              
-                              // Amount Details
                               Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(16),
+                                width: 50,
+                                height: 50,
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: [
-                                      _getColorForType(type).withOpacity(0.05),
-                                      _getColorForType(type).withOpacity(0.02),
+                                      _getColorForType(type),
+                                      _getColorForType(type).withOpacity(0.8),
                                     ],
                                   ),
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: _getColorForType(type).withOpacity(0.2)),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.trending_up,
-                                                  size: 16,
-                                                  color: Color(0xFF1976D2),
-                                                ),
-                                                const SizedBox(width: 6),
-                                                Text(
-                                                  'Nominal Pinjaman',
-                                                  style: TextStyle(
-                                                    color: Color(0xFF757575),
-                                                    fontSize: 12,
-                                                    fontFamily: 'Poppins',
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              'Rp ${_formatCurrency(nominal)}',
-                                              style: TextStyle(
-                                                color: Color(0xFF1976D2),
-                                                fontSize: 16,
-                                                fontFamily: 'Poppins',
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.end,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.pending_actions,
-                                                  size: 16,
-                                                  color: sisaTagihan > 0 ? Color(0xFFD32F2F) : Color(0xFF4CAF50),
-                                                ),
-                                                const SizedBox(width: 6),
-                                                Text(
-                                                  'Sisa Tagihan',
-                                                  style: TextStyle(
-                                                    color: Color(0xFF757575),
-                                                    fontSize: 12,
-                                                    fontFamily: 'Poppins',
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              'Rp ${_formatCurrency(sisaTagihan)}',
-                                              style: TextStyle(
-                                                color: sisaTagihan > 0 ? Color(0xFFD32F2F) : Color(0xFF4CAF50),
-                                                fontSize: 16,
-                                                fontFamily: 'Poppins',
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: _getColorForType(type).withOpacity(0.3),
+                                      blurRadius: 8,
+                                      offset: Offset(0, 4),
                                     ),
-
-                                    // Monthly Payment for Individual Loan
-                                    if (sisaTagihan > 0) ...[
-                                      const SizedBox(height: 16),
-                                      Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              Color(0xFFFF9800).withOpacity(0.1),
-                                              Color(0xFFFF9800).withOpacity(0.05),
-                                            ],
-                                          ),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(color: Color(0xFFFF9800).withOpacity(0.3)),
+                                  ],
+                                ),
+                                child: Icon(
+                                  _getIconForType(type),
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      jenisNama,
+                                      style: const TextStyle(
+                                        color: Color(0xFF4E342E),
+                                        fontSize: 16,
+                                        fontFamily: 'Poppins',
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: Color(0xFFF5F5F5),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        '$count Pinjaman Tergabung',
+                                        style: const TextStyle(
+                                          color: Color(0xFF757575),
+                                          fontSize: 11,
+                                          fontFamily: 'Poppins',
+                                          fontWeight: FontWeight.w500,
                                         ),
-                                        child: Row(
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: _getStatusColor(overallStatus),
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: _getStatusColor(overallStatus).withOpacity(0.3),
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _getStatusIcon(overallStatus),
+                                      size: 12,
+                                      color: Colors.white,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      overallStatus,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontFamily: 'Poppins',
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          
+                          const SizedBox(height: 20),
+                          
+                          // Amount Details
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  _getColorForType(type).withOpacity(0.05),
+                                  _getColorForType(type).withOpacity(0.02),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: _getColorForType(type).withOpacity(0.2)),
+                            ),
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
                                           children: [
                                             Icon(
-                                              Icons.schedule,
-                                              color: Color(0xFFFF9800),
+                                              Icons.trending_up,
                                               size: 16,
+                                              color: Color(0xFF1976D2),
                                             ),
-                                            const SizedBox(width: 8),
+                                            const SizedBox(width: 6),
                                             Text(
-                                              'Tagihan Bulan Ini: ',
+                                              'Total Pinjaman',
                                               style: TextStyle(
                                                 color: Color(0xFF757575),
                                                 fontSize: 12,
@@ -1378,402 +1336,191 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                                                 fontWeight: FontWeight.w500,
                                               ),
                                             ),
-                                            Text(
-                                               'Rp ${_formatCurrency(angsuranBulanan)}',
-                                              style: TextStyle(
-                                                color: Color(0xFFFF9800),
-                                                fontSize: 14,
-                                                fontFamily: 'Poppins',
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
                                           ],
                                         ),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Text(
-                                                'Progress Pembayaran',
-                                                style: TextStyle(
-                                                  color: Color(0xFF757575),
-                                                  fontSize: 12,
-                                                  fontFamily: 'Poppins',
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                              Text(
-                                                '${(progress * 100).toStringAsFixed(1)}%',
-                                                style: TextStyle(
-                                                  color: _getColorForType(type),
-                                                  fontSize: 12,
-                                                  fontFamily: 'Poppins',
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                            ],
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'Rp ${_formatCurrency(totalNominal)}',
+                                          style: TextStyle(
+                                            color: Color(0xFF1976D2),
+                                            fontSize: 16,
+                                            fontFamily: 'Poppins',
+                                            fontWeight: FontWeight.w700,
                                           ),
-                                          const SizedBox(height: 8),
-                                          Container(
-                                            width: double.infinity,
-                                            height: 8,
-                                            decoration: BoxDecoration(
-                                              color: Color(0xFFE0E0E0),
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            child: FractionallySizedBox(
-                                              alignment: Alignment.centerLeft,
-                                              widthFactor: progress,
-                                              child: Container(
-                                                decoration: BoxDecoration(
-                                                  gradient: LinearGradient(
-                                                    colors: [
-                                                      _getColorForType(type),
-                                                      _getColorForType(type).withOpacity(0.8),
-                                                    ],
-                                                  ),
-                                                  borderRadius: BorderRadius.circular(4),
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: _getColorForType(type).withOpacity(0.3),
-                                                      blurRadius: 4,
-                                                      offset: Offset(0, 2),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ] else ...[
-                                      const SizedBox(height: 12),
-                                      Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
-                                          ),
-                                          borderRadius: BorderRadius.circular(12),
                                         ),
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                      ],
+                                    ),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Row(
                                           children: [
                                             Icon(
-                                              Icons.check_circle,
-                                              color: Colors.white,
+                                              Icons.pending_actions,
                                               size: 16,
+                                              color: totalSisa > 0 ? Color(0xFFD32F2F) : Color(0xFF4CAF50),
                                             ),
-                                            const SizedBox(width: 8),
+                                            const SizedBox(width: 6),
                                             Text(
-                                              'PINJAMAN LUNAS',
+                                              'Sisa Tagihan',
                                               style: TextStyle(
-                                                color: Colors.white,
+                                                color: Color(0xFF757575),
                                                 fontSize: 12,
                                                 fontFamily: 'Poppins',
-                                                fontWeight: FontWeight.w700,
-                                                letterSpacing: 0.5,
+                                                fontWeight: FontWeight.w500,
                                               ),
                                             ),
                                           ],
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'Rp ${_formatCurrency(totalSisa)}',
+                                          style: TextStyle(
+                                            color: totalSisa > 0 ? Color(0xFFD32F2F) : Color(0xFF4CAF50),
+                                            fontSize: 16,
+                                            fontFamily: 'Poppins',
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ],
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      
-                      // CARD PEMBAYARAN - TERPISAH
-                      if (totalTerbayar > 0 || pembayaranTerakhir > 0) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Color(0xFF4CAF50).withOpacity(0.05),
-                                Colors.white,
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Color(0xFF4CAF50).withOpacity(0.2), width: 1.5),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Color(0xFF4CAF50).withOpacity(0.08),
-                                blurRadius: 12,
-                                offset: Offset(0, 4),
-                                spreadRadius: 0,
-                              ),
-                            ],
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Header Card Pembayaran
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 46,
-                                      height: 46,
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
-                                        ),
-                                        borderRadius: BorderRadius.circular(14),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Color(0xFF4CAF50).withOpacity(0.3),
-                                            blurRadius: 8,
-                                            offset: Offset(0, 4),
-                                          ),
+
+                                // Monthly Payment for Group
+                                if (totalSisa > 0) ...[
+                                  const SizedBox(height: 16),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Color(0xFFFF9800).withOpacity(0.1),
+                                          Color(0xFFFF9800).withOpacity(0.05),
                                         ],
                                       ),
-                                      child: Icon(
-                                        Icons.account_balance_wallet,
-                                        color: Colors.white,
-                                        size: 22,
-                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Color(0xFFFF9800).withOpacity(0.3)),
                                     ),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.schedule,
+                                          color: Color(0xFFFF9800),
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Tagihan Bulan Ini: ',
+                                          style: TextStyle(
+color: Color(0xFF757575),
+                                            fontSize: 12,
+                                            fontFamily: 'Poppins',
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        Text(
+                                           'Rp ${_formatCurrency(totalAngsuran)}',
+                                          style: TextStyle(
+                                            color: Color(0xFFFF9800),
+                                            fontSize: 14,
+                                            fontFamily: 'Poppins',
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
-                                            'Riwayat Pembayaran',
-                                            style: TextStyle(
-                                              color: Color(0xFF2E7D32),
-                                              fontSize: 16,
-                                              fontFamily: 'Poppins',
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'ID: $idPinjaman',
+                                            'Progress Pembayaran',
                                             style: TextStyle(
                                               color: Color(0xFF757575),
-                                              fontSize: 11,
+                                              fontSize: 12,
                                               fontFamily: 'Poppins',
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Color(0xFF4CAF50).withOpacity(0.15),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.payments,
-                                            size: 12,
-                                            color: Color(0xFF2E7D32),
-                                          ),
-                                          const SizedBox(width: 4),
                                           Text(
-                                            'Paid',
+                                            '${(progress * 100).toStringAsFixed(1)}%',
                                             style: TextStyle(
-                                              color: Color(0xFF2E7D32),
-                                              fontSize: 10,
+                                              color: _getColorForType(type),
+                                              fontSize: 12,
                                               fontFamily: 'Poppins',
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                
-                                const SizedBox(height: 20),
-                                
-                                // Total Terbayar
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Color(0xFF4CAF50).withOpacity(0.1),
-                                        Color(0xFF4CAF50).withOpacity(0.05),
-                                      ],
-                                    ),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: Color(0xFF4CAF50).withOpacity(0.3)),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.trending_up_rounded,
-                                            color: Color(0xFF4CAF50),
-                                            size: 18,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Total Terbayar',
-                                            style: TextStyle(
-                                              color: Color(0xFF757575),
-                                              fontSize: 14,
-                                              fontFamily: 'Poppins',
-                                              fontWeight: FontWeight.w600,
+                                              fontWeight: FontWeight.w700,
                                             ),
                                           ),
                                         ],
                                       ),
                                       const SizedBox(height: 8),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            'Rp ${_formatCurrency(totalTerbayar)}',
-                                            style: TextStyle(
-                                              color: Color(0xFF4CAF50),
-                                              fontSize: 20,
-                                              fontFamily: 'Poppins',
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      Container(
+                                        width: double.infinity,
+                                        height: 8,
+                                        decoration: BoxDecoration(
+                                          color: Color(0xFFE0E0E0),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: FractionallySizedBox(
+                                          alignment: Alignment.centerLeft,
+                                          widthFactor: progress,
+                                          child: Container(
                                             decoration: BoxDecoration(
-                                              color: Color(0xFF4CAF50).withOpacity(0.2),
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: Text(
-                                              '${(progress * 100).toStringAsFixed(0)}%',
-                                              style: TextStyle(
-                                                color: Color(0xFF2E7D32),
-                                                fontSize: 12,
-                                                fontFamily: 'Poppins',
-                                                fontWeight: FontWeight.w700,
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  _getColorForType(type),
+                                                  _getColorForType(type).withOpacity(0.8),
+                                                ],
                                               ),
+                                              borderRadius: BorderRadius.circular(4),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: _getColorForType(type).withOpacity(0.3),
+                                                  blurRadius: 4,
+                                                  offset: Offset(0, 2),
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                        ],
+                                        ),
                                       ),
                                     ],
                                   ),
-                                ),
-
-                                // Pembayaran Terakhir
-                                if (pembayaranTerakhir > 0) ...[
-                                  const SizedBox(height: 16),
+                                ] else ...[
+                                  const SizedBox(height: 12),
                                   Container(
                                     width: double.infinity,
-                                    padding: const EdgeInsets.all(16),
+                                    padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
                                       gradient: LinearGradient(
-                                        colors: [
-                                          Color(0xFF2196F3).withOpacity(0.1),
-                                          Color(0xFF2196F3).withOpacity(0.05),
-                                        ],
+                                        colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
                                       ),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(color: Color(0xFF2196F3).withOpacity(0.3)),
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.receipt_long,
-                                              color: Color(0xFF2196F3),
-                                              size: 18,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'Pembayaran Terakhir',
-                                              style: TextStyle(
-                                                color: Color(0xFF757575),
-                                                fontSize: 14,
-                                                fontFamily: 'Poppins',
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
+                                        Icon(
+                                          Icons.check_circle,
+                                          color: Colors.white,
+                                          size: 16,
                                         ),
-                                        const SizedBox(height: 12),
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          crossAxisAlignment: CrossAxisAlignment.end,
-                                          children: [
-                                            Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  'Jumlah Bayar',
-                                                  style: TextStyle(
-                                                    color: Color(0xFF757575),
-                                                    fontSize: 12,
-                                                    fontFamily: 'Poppins',
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  'Rp ${_formatCurrency(pembayaranTerakhir)}',
-                                                  style: TextStyle(
-                                                    color: Color(0xFF2196F3),
-                                                    fontSize: 18,
-                                                    fontFamily: 'Poppins',
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            Column(
-                                              crossAxisAlignment: CrossAxisAlignment.end,
-                                              children: [
-                                                Text(
-                                                  'Tanggal',
-                                                  style: TextStyle(
-                                                    color: Color(0xFF757575),
-                                                    fontSize: 12,
-                                                    fontFamily: 'Poppins',
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                  decoration: BoxDecoration(
-                                                    color: Color(0xFF2196F3).withOpacity(0.15),
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                  child: Text(
-                                                    tanggalPembayaranTerakhir,
-                                                    style: TextStyle(
-                                                      color: Color(0xFF1976D2),
-                                                      fontSize: 11,
-                                                      fontFamily: 'Poppins',
-                                                      fontWeight: FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'SEMUA PINJAMAN LUNAS',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontFamily: 'Poppins',
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.5,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -1782,13 +1529,106 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                               ],
                             ),
                           ),
-                        ),
-                      ],
-                    ],
+
+                          // Detail breakdown section (bisa dikembangkan untuk expandable)
+                          if (totalSisa > 0) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFF2196F3).withOpacity(0.05),
+                                    Colors.white,
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Color(0xFF2196F3).withOpacity(0.2)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.info_outline,
+                                        color: Color(0xFF2196F3),
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Text(
+                                        'Riwayat Pembayaran',
+                                        style: TextStyle(
+                                          color: Color(0xFF2196F3),
+                                          fontSize: 14,
+                                          fontFamily: 'Poppins',
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Color(0xFF2196F3).withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          '${allPayments.length} transaksi',
+                                          style: const TextStyle(
+                                            color: Color(0xFF2196F3),
+                                            fontSize: 11,
+                                            fontFamily: 'Poppins',
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  if (latestPayments.isEmpty) ...[
+                                  const Text(
+                                    "Belum ada pembayaran",
+                                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                                  ),
+                                ] else ...latestPayments.map((pay) {
+                                  final tgl = DateFormat("dd MMM yyyy").format(DateTime.parse(pay['tanggal_pembayaran']));
+                                  final nominal = _formatCurrency(pay['nominal']);
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 6),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          tgl,
+                                          style: const TextStyle(fontSize: 12, color: Color(0xFF757575)),
+                                        ),
+                                        Text(
+                                          "Rp $nominal",
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF4CAF50),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
                 );
               },
-              childCount: filteredData.length > 3 ? 3 : filteredData.length, // Limit to 3 items
+              childCount: groupedLoans.length,
             ),
           ),
         ),
@@ -1796,4 +1636,3 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
     );
   }
 }
-

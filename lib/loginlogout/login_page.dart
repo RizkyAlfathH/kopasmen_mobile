@@ -9,7 +9,7 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _nipController = TextEditingController();
+  final _nomorAnggotaController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _loading = false;
   String? _error;
@@ -21,7 +21,7 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     final result = await ApiService.login(
-      _nipController.text,
+      _nomorAnggotaController.text,
       _passwordController.text,
     );
 
@@ -187,9 +187,9 @@ class _LoginPageState extends State<LoginPage> {
                           
                           const SizedBox(height: 32),
                           
-                          // NIP field
+                          // Nomor Anggota field
                           const Text(
-                            "NIP",
+                            "Nomor Anggota",
                             style: TextStyle(
                               fontSize: 15,
                               color: Colors.black87,
@@ -221,13 +221,13 @@ class _LoginPageState extends State<LoginPage> {
                               ],
                             ),
                             child: TextField(
-                              controller: _nipController,
+                              controller: _nomorAnggotaController,
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w500,
                               ),
                               decoration: InputDecoration(
-                                hintText: "Masukkan NIP...",
+                                hintText: "Masukkan Nomor Anggota   ...",
                                 hintStyle: TextStyle(
                                   color: Colors.grey[400],
                                   fontSize: 14,

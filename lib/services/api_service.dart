@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // kalau di emulator Android ganti 127.0.0.1 jadi 10.0.2.2
   static const String baseUrl = "http://127.0.0.1:8000/api";
 
   // ======================
@@ -11,30 +10,41 @@ class ApiService {
 
   // Login
   static Future<Map<String, dynamic>?> login(
-    String nip,
+    String nomorAnggota,
     String password,
   ) async {
     final url = Uri.parse("$baseUrl/login/");
-    final response = await http.post(
-      url,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"nip": nip, "password": password}),
-    );
+    try { 
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "nomor_anggota": nomorAnggota,
+          "password": password,
+        }),
+      );
 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      return {"error": jsonDecode(response.body)};
+      final body = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return body;
+      } else if (response.statusCode == 400 || response.statusCode == 404) {
+        return {"error": body["error"] ?? "Login gagal"};
+      } else {
+        return {"error": "Terjadi kesalahan server (${response.statusCode})"};
+      }
+    } catch (e) {
+      return {"error": "Terjadi kesalahan: $e"};
     }
   }
 
-  // Cek NIP
-  static Future<bool> checkNIP(String nip) async {
-    final url = Uri.parse("$baseUrl/check-nip/");
+  // Cek NIP / Nomor Anggota
+  static Future<bool> checkNomorAnggota(String nomorAnggota) async {
+    final url = Uri.parse("$baseUrl/check-nomor-anggota/");
     final response = await http.post(
       url,
       headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"nip": nip}),
+      body: jsonEncode({"nomor_anggota": nomorAnggota}),
     );
 
     if (response.statusCode == 200) {
@@ -46,14 +56,16 @@ class ApiService {
   }
 
   // Reset Password
-  static Future<bool> resetPassword(String nip, String newPassword) async {
+  static Future<bool> resetPassword(String nomorAnggota, String newPassword) async {
     final url = Uri.parse("$baseUrl/reset-password/");
     final response = await http.post(
       url,
       headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"nip": nip, "password": newPassword}),
+      body: jsonEncode({
+        "nomor_anggota": nomorAnggota,
+        "password": newPassword,
+      }),
     );
-
     return response.statusCode == 200;
   }
 

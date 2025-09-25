@@ -267,7 +267,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'NIP : ${anggota!['nip'] ?? '-'}',
+                    'No Anggota : ${anggota!['nomor_anggota'] ?? '-'}',
                     style: const TextStyle(
                       color: Color(0xFF4E342E),
                       fontSize: 13,

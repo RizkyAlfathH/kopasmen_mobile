@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'package:intl/intl.dart';
+import 'home_page.dart';
 
 void main() {
-  runApp(const FigmaToCodeApp());
+  runApp(const HistoryApp());
 }
 
-class FigmaToCodeApp extends StatelessWidget {
-  const FigmaToCodeApp({super.key});
+class HistoryApp extends StatelessWidget {
+  const HistoryApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +47,7 @@ class _HistoryPageState extends State<HistoryPage> {
   final List<String> tabs = ['Simpanan', 'Pinjaman'];
 
   List<dynamic> _simpananData = [];
+  List<dynamic> _penarikanData = [];
   List<dynamic> _pinjamanData = [];
 
   @override
@@ -62,6 +64,7 @@ class _HistoryPageState extends State<HistoryPage> {
     try {
       await Future.wait([
         _fetchSimpananData(),
+        _fetchPenarikanData(),
         _fetchPinjamanData(),
       ]);
       _processTransactionData();
@@ -98,6 +101,15 @@ class _HistoryPageState extends State<HistoryPage> {
     }
   }
 
+  Future<void> _fetchPenarikanData() async {
+    try {
+      _penarikanData = await ApiService.getPenarikan(widget.nip);
+    } catch (e) {
+      print('Error fetching penarikan: $e');
+      _penarikanData = [];
+    }
+  }
+
   void _processTransactionData() {
     List<TransactionItem> processedTransactions = [];
 
@@ -121,17 +133,51 @@ class _HistoryPageState extends State<HistoryPage> {
       ));
     }
 
-    // Pinjaman
-    for (var item in _pinjamanData) {
+    // Penarikan
+    for (var item in _penarikanData) {
       final amount = double.tryParse(item['nominal'].toString()) ?? 0;
-      final jenisNama = item['jenis_pinjaman']['nama_jenis'].toString();
-      final tanggal = item['tanggal_meminjam'].toString();
+      final tanggal = item['tanggal_penarikan'].toString();
+      final jenisNama = item['jenis_simpanan']['nama_jenis'].toString();
 
       processedTransactions.add(TransactionItem(
-        id: '${widget.nip}pinjaman${item['id']}',
-        title: 'Pencairan $jenisNama',
+        id: '${widget.nip}penarikan${item['id']}',
+        title: 'Penarikan $jenisNama',
+        description: 'Penarikan $jenisNama  - ${widget.nama}',
+        amount: '- Rp ${_formatCurrency(amount)}',
+        date: _formatDate(tanggal),
+        time: _extractTime(tanggal),
+        isPositive: false,
+        type: 'simpanan',
+        userNip: widget.nip,
+        rawData: item,
+      ));
+    }
+
+    // Pinjaman
+    for (var item in _pinjamanData) {
+      final amount = double.tryParse(item['jumlah_pinjaman'].toString()) ?? 0;
+      final jenisNama = item['jenis_pinjaman']?['nama_jenis']?.toString() ?? 'Pinjaman';
+      final tanggal = item['tanggal_meminjam'].toString();
+
+      // Pencairan pinjaman
+      processedTransactions.add(TransactionItem(
+        id: '${widget.nip}pinjaman${item['id_pinjaman']}',
+        title: 'Riwayat Pinjaman $jenisNama',
         description: 'Pinjaman $jenisNama - ${widget.nama}',
-        amount: '+ Rp ${_formatCurrency(amount)}',
+        amount: 'Rp ${_formatCurrency(amount)}',
+        date: _formatDate(tanggal),
+        time: _extractTime(tanggal),
+        isPositive: true, 
+        type: 'pinjaman',
+        userNip: widget.nip,
+        rawData: item,
+      ));
+
+      processedTransactions.add(TransactionItem(
+        id: '${widget.nip}pinjaman${item['id_pinjaman']}',
+        title: 'Pembayaran $jenisNama',
+        description: 'Pinjaman $jenisNama - ${widget.nama}',
+        amount: 'Rp ${_formatCurrency(amount)}',
         date: _formatDate(tanggal),
         time: _extractTime(tanggal),
         isPositive: true,
@@ -140,6 +186,7 @@ class _HistoryPageState extends State<HistoryPage> {
         rawData: item,
       ));
 
+      // Riwayat angsuran (pembayaran cicilan)
       if (item['angsuran'] != null && item['angsuran'] is List) {
         List<dynamic> angsuranList = item['angsuran'];
         for (var angsuran in angsuranList) {
@@ -148,12 +195,12 @@ class _HistoryPageState extends State<HistoryPage> {
 
           processedTransactions.add(TransactionItem(
             id: '${widget.nip}angsuran${angsuran['id']}',
-            title: 'Angsuran $jenisNama',
-            description: 'Pembayaran cicilan $jenisNama - ${widget.nama}',
-            amount: '- Rp ${_formatCurrency(angsuranAmount)}',
+            title: 'Pembayaran Angsuran $jenisNama',
+            description: 'Cicilan $jenisNama - ${widget.nama}',
+            amount: 'Rp ${_formatCurrency(angsuranAmount)}', // tanpa minus
             date: _formatDate(angsuranTanggal),
             time: _extractTime(angsuranTanggal),
-            isPositive: false,
+            isPositive: false, // abaikan, styling nanti di card
             type: 'pinjaman',
             userNip: widget.nip,
             rawData: angsuran,
@@ -198,8 +245,8 @@ class _HistoryPageState extends State<HistoryPage> {
       filtered = filtered.where((transaction) {
         final q = searchQuery.toLowerCase();
         return transaction.title.toLowerCase().contains(q) ||
-            transaction.description.toLowerCase().contains(q) ||
-            transaction.date.toLowerCase().contains(q);
+              transaction.description.toLowerCase().contains(q) ||
+              transaction.date.toLowerCase().contains(q);
       }).toList();
     }
 
@@ -274,29 +321,103 @@ class _HistoryPageState extends State<HistoryPage> {
 
   Widget _buildHeader() {
     return Container(
-      height: 72,
+      height: 100, // Increased height for better visual balance
       width: double.infinity,
-      color: const Color(0xFFFFDC16),
-      padding: const EdgeInsets.symmetric(horizontal: 25),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: const Icon(
-              Icons.arrow_back,
-              color: Color(0xFF4E342E),
-            ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFFFFDC16),
+            Color(0xFFFFE554),
+          ],
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 25),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => HomePage(
+                        user: {
+                          'nip': widget.nip,
+                          'nama': widget.nama,
+                        },
+                      ),
+                    ),
+                  );
+                },
+                child: Container(
+                  margin: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: const Icon(
+                      Icons.arrow_back_ios_new,
+                      color: Color(0xFF4E342E),
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Riwayat Transaksi',
+                      style: TextStyle(
+                        color: Color(0xFF4E342E),
+                        fontSize: 18,
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Detail aktivitas keuangan Anda',
+                      style: TextStyle(
+                        color: Color(0xFF4E342E).withOpacity(0.7),
+                        fontSize: 12,
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.history,
+                  color: Color(0xFF4E342E),
+                  size: 20,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 15),
-          const Text(
-            'Riwayat Transaksi',
-            style: TextStyle(
-              color: Color(0xFF4E342E),
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -635,17 +756,20 @@ class _HistoryPageState extends State<HistoryPage> {
                         fontSize: 12,
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    const Icon(Icons.access_time,
-                        size: 13, color: Color(0xFF8D6E63)),
-                    const SizedBox(width: 4),
-                    Text(
-                      transaction.time,
-                      style: const TextStyle(
-                        color: Color(0xFF8D6E63),
-                        fontSize: 12,
+                    // Only show time if it's not "00:00"
+                    if (transaction.time != '00:00') ...[
+                      const SizedBox(width: 10),
+                      const Icon(Icons.access_time,
+                          size: 13, color: Color(0xFF8D6E63)),
+                      const SizedBox(width: 4),
+                      Text(
+                        transaction.time,
+                        style: const TextStyle(
+                          color: Color(0xFF8D6E63),
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ],
@@ -654,7 +778,9 @@ class _HistoryPageState extends State<HistoryPage> {
           Text(
             transaction.amount,
             style: TextStyle(
-              color: transaction.isPositive ? Colors.green[700] : Colors.red,
+              color: (transaction.type == 'pinjaman')
+                  ? const Color(0xFF4E342E) // netral coklat untuk pinjaman & pembayaran
+                  : (transaction.isPositive ? Colors.green[700] : Colors.red),
               fontSize: 14,
               fontWeight: FontWeight.bold,
             ),
