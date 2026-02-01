@@ -1120,7 +1120,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
                 const SizedBox(height: 16),
               ],
