@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'api_service.dart';
-import 'home_page.dart';
+import '../services/api_service.dart';
+import '../page/home_page.dart';
+import 'reset_password_page.dart'; // ✅ import halaman reset password
 
 class LoginPage extends StatefulWidget {
   @override
@@ -47,6 +48,7 @@ class _LoginPageState extends State<LoginPage> {
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextField(
               controller: _nipController,
@@ -67,6 +69,23 @@ class _LoginPageState extends State<LoginPage> {
                     onPressed: _login,
                     child: const Text("Login"),
                   ),
+            const SizedBox(height: 12),
+
+            // ✅ Tambahin tombol "Lupa Password?"
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ResetPasswordPage(),
+                  ),
+                );
+              },
+              child: const Text(
+                "Lupa Password?",
+                style: TextStyle(color: Colors.blue),
+              ),
+            ),
           ],
         ),
       ),

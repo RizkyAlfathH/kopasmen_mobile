@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'login_page.dart'; 
+import 'loginlogout/login_page.dart'; 
+import 'loginlogout/reset_password_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -18,6 +19,10 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: LoginPage(), // arahkan langsung ke halaman login
+      routes: {
+        '/login': (context) => LoginPage(),
+        '/reset-password': (context) => ResetPasswordPage(),
+      },
     );
   }
 }
