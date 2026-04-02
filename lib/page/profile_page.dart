@@ -2,12 +2,20 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
 class ProfilePage extends StatefulWidget {
-  final String nip;
-  const ProfilePage({super.key, required this.nip});
+  final String nomorAnggota;
+  final String nama;
+
+  const ProfilePage({
+    super.key,
+    required this.nomorAnggota,
+    this.nama = 'User',
+  });
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
+
+
 
 class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? anggota;
@@ -38,7 +46,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _fetchProfile() async {
     try {
-      final data = await ApiService.getProfile(widget.nip);
+      final data = await ApiService.getProfile(widget.nomorAnggota);
       setState(() {
         anggota = data;
         isLoading = false;
@@ -465,25 +473,38 @@ class _ProfilePageState extends State<ProfilePage> {
                                 
                                 _buildInfoItem(
                                   'Jenis Kelamin',
-                                  anggota!['jenis_kelamin'] ?? 'Laki-laki',
+                                  anggota!['jenis_kelamin'] ?? '-',
                                   Icons.people_outline,
+                                ),
+
+                               _buildInfoItem(
+                                  'Umur',
+                                  '${anggota!['umur'] ?? '-'}',
+                                  Icons.calendar_today,
+                                ),
+
+
+                                _buildInfoItem(
+                                  'Profesi',
+                                  anggota!['pekerjaan'] ?? '-',
+                                  Icons.assignment_ind,
                                 ),
                                 
                                 _buildInfoItem(
                                   'Tanggal Bergabung',
-                                  anggota!['tanggal_daftar'] ?? '01 Januari 2024',
+                                  anggota!['tanggal_daftar'] ?? '-',
                                   Icons.calendar_today_outlined,
                                 ),
                                 
                                 _buildInfoItem(
                                   'Alamat Email',
-                                  anggota!['email'] ?? 'ujang@gmail.com',
+                                  anggota!['email'] ?? '-',
                                   Icons.email_outlined,
                                 ),
                                 
                                 _buildInfoItem(
                                   'Alamat Rumah',
-                                  anggota!['alamat'] ?? 'Jl. Budhi',
+                                  anggota!['alamat'] ?? '-',
                                   Icons.location_on_outlined,
                                 ),
                                 
@@ -524,7 +545,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           child: SafeArea(
                             child: Center(
                               child: Text(
-                                anggota!['nama'] ?? 'Profile',
+                                anggota!['nama']?.toString() ?? 'Profile',
                                 style: const TextStyle(
                                   color: Color(0xFF4E342E),
                                   fontSize: 18,

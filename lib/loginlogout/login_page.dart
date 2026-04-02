@@ -15,31 +15,31 @@ class _LoginPageState extends State<LoginPage> {
   String? _error;
 
   void _login() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  setState(() {
+    _loading = true;
+    _error = null;
+  });
 
-    final result = await ApiService.login(
-      _nomorAnggotaController.text,
-      _passwordController.text,
+  final result = await ApiService.login(
+    _nomorAnggotaController.text,
+    _passwordController.text,
+  );
+
+  setState(() => _loading = false);
+
+  if (result != null && result["data"] != null) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => HomePage(user: result["data"]),
+      ),
     );
-
-    setState(() => _loading = false);
-
-    if (result != null && result["data"] != null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => HomePage(user: result["data"]),
-        ),
-      );
-    } else {
-      setState(() {
-        _error = result?["error"]?["error"] ?? "Login gagal";
-      });
-    }
+  } else {
+    setState(() {
+      _error = result?["error"]?.toString() ?? "Login gagal"; // ← baris 39
+    });
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -212,7 +212,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             child: TextField(
                               controller: _nomorAnggotaController,
-                              keyboardType: TextInputType.number,
+                              obscureText: false,
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w500,
@@ -301,8 +301,6 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           
                           const SizedBox(height: 35),
-                          
-                          // Error message
                           if (_error != null)
                             Container(
                               margin: const EdgeInsets.only(bottom: 20),
@@ -335,8 +333,6 @@ class _LoginPageState extends State<LoginPage> {
                                 ],
                               ),
                             ),
-                          
-                          // Login button dengan desain yang konsisten
                           SizedBox(
                             width: double.infinity,
                             child: Container(

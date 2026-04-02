@@ -5,10 +5,14 @@ import 'history_page.dart';
 import 'home_page.dart';
 
 class PinjamanPage extends StatefulWidget {
-  final String nip;
+  final String nomorAnggota;
   final String nama;
 
-  const PinjamanPage({super.key, required this.nip, required this.nama});
+  const PinjamanPage({
+    super.key,
+    required this.nomorAnggota,
+    this.nama = 'User',
+  });
 
   @override
   State<PinjamanPage> createState() => _PinjamanPageState();
@@ -44,20 +48,34 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
 
   Future<void> fetchPinjaman() async {
     try {
-      final data = await ApiService.getPinjaman(widget.nip);
-        setState(() {
-          pinjamanList = data; 
-          _calculateTotals();
-          isLoading = false;
-        });
+      final data = await ApiService.getPinjaman(widget.nomorAnggota);
 
-        for (var p in pinjamanList) {
-  print("ID Pinjaman: ${p['id_pinjaman']}, Sisa: ${p['sisa_pinjaman']}");
-}
-    } catch (e) {
+      // 🔥 Ambil angsuran untuk setiap pinjaman
+      for (var p in data) {
+        final idPinjaman = p['id_pinjaman'];
+
+        try {
+          final angsuran = await ApiService.getAngsuran(idPinjaman);
+          p['angsuran'] = angsuran; // simpan ke object pinjaman
+        } catch (e) {
+          p['angsuran'] = [];
+        }
+      }
+
       setState(() {
+        pinjamanList = data;
+        _calculateTotals();
         isLoading = false;
       });
+
+      // debug
+      for (var p in pinjamanList) {
+        print("ID: ${p['id_pinjaman']} | Jumlah angsuran: ${(p['angsuran'] as List).length}");
+      }
+
+    } catch (e) {
+      setState(() => isLoading = false);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
@@ -67,7 +85,6 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
       );
     }
   }
-
   void _calculateTotals() {
     totalPinjamanReguler = 0;
     totalPinjamanKhusus = 0;
@@ -80,27 +97,35 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
       final nominal = double.tryParse(
         (item['jumlah_pinjaman'] ?? item['nominal'] ?? "0").toString()
       ) ?? 0;
+
       final sisaPinjaman = double.tryParse(
-        (item['sisa_pinjaman'] ?? "0").toString()
+        (item['sisa_pinjaman_real'] ?? "0").toString()
       ) ?? 0;
+
+      final status = item['status']?.toString().toLowerCase() ?? '';
       final jenisNama = item['jenis_pinjaman']?['nama_jenis']?.toString().toLowerCase() ?? '';
-      
-      if (jenisNama.contains('reguler') || jenisNama.contains('biasa')) {
+
+      // TOTAL PINJAMAN tetap dihitung semua
+      if (jenisNama.contains('reguler')) {
         totalPinjamanReguler += nominal;
-        totalSisaPinjamanReguler += sisaPinjaman;
-      } else if (jenisNama.contains('khusus') || jenisNama.contains('darurat')) {
+      } else if (jenisNama.contains('khusus')) {
         totalPinjamanKhusus += nominal;
-        totalSisaPinjamanKhusus += sisaPinjaman;
-      } else if (jenisNama.contains('barang') || jenisNama.contains('elektronik')) {
+      } else if (jenisNama.contains('barang')) {
         totalPinjamanBarang += nominal;
-        totalSisaPinjamanBarang += sisaPinjaman;
-      } else {
-        // Default ke reguler jika tidak dikenali
-        totalPinjamanReguler += nominal;
-        totalSisaPinjamanReguler += sisaPinjaman;
+      }
+
+      // 🔥 SISA HANYA dihitung kalau masih aktif & ada sisa
+      if (status.trim().toLowerCase().contains('aktif') && sisaPinjaman > 0) {
+        if (jenisNama.contains('reguler')) {
+          totalSisaPinjamanReguler += sisaPinjaman;
+        } else if (jenisNama.contains('khusus')) {
+          totalSisaPinjamanKhusus += sisaPinjaman;
+        } else if (jenisNama.contains('barang')) {
+          totalSisaPinjamanBarang += sisaPinjaman;
+        }
       }
     }
-    
+
     grandTotalPinjaman = totalPinjamanReguler + totalPinjamanKhusus + totalPinjamanBarang;
     grandTotalSisaPinjaman = totalSisaPinjamanReguler + totalSisaPinjamanKhusus + totalSisaPinjamanBarang;
   }
@@ -151,11 +176,12 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
   }
 
   Color _getStatusColor(String status) {
-    final statusLower = status.toLowerCase();
-    if (statusLower.contains('lunas') && !statusLower.contains('belum')) {
-      return const Color(0xFF4CAF50);
-    } else if (statusLower.contains('belum lunas') || statusLower.contains('pending')) {
+    final statusLower = status.toLowerCase().trim();
+
+    if (statusLower.contains('belum lunas') || statusLower.contains('pending')) {
       return const Color(0xFFFF9800);
+    } else if (statusLower.contains('lunas')) {
+      return const Color(0xFF4CAF50);
     } else if (statusLower.contains('ditolak') || statusLower.contains('gagal')) {
       return const Color(0xFFD32F2F);
     } else {
@@ -164,11 +190,12 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
   }
 
   IconData _getStatusIcon(String status) {
-    final statusLower = status.toLowerCase();
-    if (statusLower.contains('lunas') && !statusLower.contains('belum')) {
-      return Icons.check_circle;
-    } else if (statusLower.contains('belum lunas') || statusLower.contains('pending')) {
+    final statusLower = status.toLowerCase().trim();
+
+    if (statusLower.contains('belum lunas') || statusLower.contains('pending')) {
       return Icons.schedule;
+    } else if (statusLower.contains('lunas')) {
+      return Icons.check_circle;
     } else if (statusLower.contains('ditolak') || statusLower.contains('gagal')) {
       return Icons.error;
     } else {
@@ -205,7 +232,10 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
         existing['total_nominal'] = (existing['total_nominal'] as double) + 
           (double.tryParse((pinjaman['jumlah_pinjaman'] ?? pinjaman['nominal'] ?? "0").toString()) ?? 0);
         existing['total_sisa'] = (existing['total_sisa'] as double) + 
-          (double.tryParse(pinjaman['sisa_pinjaman'].toString()) ?? 0);
+          (double.tryParse(
+            (pinjaman['sisa_pinjaman_real'] ?? "0").toString()
+          ) ?? 0
+          );
         existing['total_angsuran'] = (existing['total_angsuran'] as double) + 
           ((double.tryParse(pinjaman['angsuran_per_bulan'].toString()) ?? 0) + 
            (double.tryParse(pinjaman['jasa_rupiah'].toString()) ?? 0));
@@ -218,7 +248,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
           'jenis_nama': jenisNama,
           'count': 1,
           'total_nominal': double.tryParse((pinjaman['jumlah_pinjaman'] ?? pinjaman['nominal'] ?? "0").toString()) ?? 0,
-          'total_sisa': double.tryParse(pinjaman['sisa_pinjaman'].toString()) ?? 0,
+          'total_sisa': double.tryParse(pinjaman['sisa_pinjaman_real'].toString()) ?? 0,
           'total_angsuran': (double.tryParse(pinjaman['angsuran_per_bulan'].toString()) ?? 0) + 
                            (double.tryParse(pinjaman['jasa_rupiah'].toString()) ?? 0),
           'details': [pinjaman],
@@ -272,7 +302,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                             MaterialPageRoute(
                               builder: (context) => HomePage(
                                 user: {
-                                  'nip': widget.nip,
+                                  'No Anggota': widget.nomorAnggota,
                                   'nama': widget.nama,
                                 },
                               ),
@@ -392,7 +422,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                                                     ),
                                                     const SizedBox(width: 4),
                                                     Text(
-                                                      'NIP: ${widget.nip}',
+                                                      'No Anggota: ${widget.nomorAnggota}',
                                                       style: const TextStyle(
                                                         color: Color(0xFF757575),
                                                         fontSize: 12,
@@ -532,7 +562,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                                                   border: Border.all(color: Color(0xFFFF9800).withOpacity(0.3)),
                                                 ),
                                                 child: Text(
-                                                  '${pinjamanList.where((p) => (double.tryParse(p['sisa_pinjaman'].toString()) ?? 0) > 0).length} aktif',
+                                                  '${pinjamanList.where((p) => (double.tryParse(p['sisa_pinjaman_real'].toString()) ?? 0) > 0).length} aktif',
                                                   style: TextStyle(
                                                     color: Color(0xFFFF9800),
                                                     fontSize: 12,
@@ -1088,7 +1118,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                             context,
                             MaterialPageRoute(
                               builder: (context) => HistoryPage(
-                                nip: widget.nip,
+                                nomorAnggota: widget.nomorAnggota,
                                 nama: widget.nama,
                               ),
                             ),
@@ -1414,7 +1444,7 @@ class _PinjamanPageState extends State<PinjamanPage> with SingleTickerProviderSt
                                         Text(
                                           'Tagihan Bulan Ini: ',
                                           style: TextStyle(
-color: Color(0xFF757575),
+                                          color: Color(0xFF757575),
                                             fontSize: 12,
                                             fontFamily: 'Poppins',
                                             fontWeight: FontWeight.w500,

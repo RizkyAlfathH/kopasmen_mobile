@@ -21,8 +21,61 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
-  double pokok = 0, wajib = 0, sukarela = 0;
-  double totalPinjaman = 0, tagihanBulanIni = 0;
+  double totalPinjaman = 0;
+  double tagihanBulanIni = 0;
+
+  double pokok = 0;
+  double wajib = 0;
+  double sukarela = 0;
+
+  double _hitungNetSimpanan(
+    List simpanan,
+    List penarikan,
+    String jenis,
+  ) {
+    double total = 0;
+
+    // Tambah setoran
+    for (var s in simpanan) {
+      final nama = s['jenis_simpanan']?['nama_jenis']
+              ?.toString()
+              .toLowerCase() ?? '';
+      if (nama.contains(jenis.toLowerCase())) {
+        total += double.tryParse(s['nominal'].toString()) ?? 0;
+      }
+    }
+
+    // Kurangi penarikan
+    for (var p in penarikan) {
+      final nama = p['jenis_simpanan']?['nama_jenis']
+              ?.toString()
+              .toLowerCase() ?? '';
+      if (nama.contains(jenis.toLowerCase())) {
+        total -= double.tryParse(p['nominal'].toString()) ?? 0;
+      }
+    }
+
+    return total < 0 ? 0 : total;
+  }
+
+  String _formatCurrency(dynamic value) {
+    if (value == null) return "0";
+    final number = num.tryParse(value.toString()) ?? 0;
+    final formatter = NumberFormat("#,##0", "id_ID");
+    return formatter.format(number);
+  }
+
+  String _formatDate(String dateStr) {
+    if (dateStr.isEmpty) return "-";
+    try {
+      final date = DateTime.parse(dateStr);
+      return DateFormat('dd MMM yyyy', 'id_ID').format(date);
+    } catch (e) {
+      return dateStr; // fallback kalau parsing gagal
+    }
+  }
+
+
 
   @override
   void initState() {
@@ -46,34 +99,29 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Future<void> _loadData() async {
-    if (!mounted) return;
-    setState(() => isLoading = true);
+  if (!mounted) return;
+  setState(() => isLoading = true);
 
-    try {
-      final simpanan = await ApiService.getSimpanan(widget.user['nip']);
-      final pinjaman = await ApiService.getPinjaman(widget.user['nip']);
-      final penarikan = await ApiService.getPenarikan(widget.user['nip']);
+  try {
+    final nomorAnggota = widget.user['nomor_anggota'];  // ← tambah ini
+    final nomorAnggotaStr = nomorAnggota.toString();
+    final simpanan = await ApiService.getSimpanan(nomorAnggotaStr);
+    print("simpanan ok: ${simpanan.length}");
+    final pinjaman = await ApiService.getPinjaman(nomorAnggotaStr);
+    print("pinjaman ok: ${pinjaman.length}");
+    final penarikan = await ApiService.getPenarikan(nomorAnggotaStr);
+    print("penarikan ok: ${penarikan.length}");
 
-      if (!mounted) return;
-
-      print("Jumlah simpanan: ${simpanan.length}");
-      print("Jumlah pinjaman: ${pinjaman.length}");
-      print("Jumlah penarikan: ${penarikan.length}");
+    print("RAW pinjaman[0]: ${pinjaman.isNotEmpty ? pinjaman[0] : 'kosong'}");
+    print("RAW simpanan[0]: ${simpanan.isNotEmpty ? simpanan[0] : 'kosong'}");
+    print("RAW penarikan[0]: ${penarikan.isNotEmpty ? penarikan[0] : 'kosong'}");
 
       // Hitung total simpanan
-      pokok = _sumSimpananByJenis(simpanan, "Simpanan Pokok");
-      wajib = _sumSimpananByJenis(simpanan, "Simpanan Wajib");
-      sukarela = _sumSimpananByJenis(simpanan, "Simpanan Sukarela");
+      pokok = _hitungNetSimpanan(simpanan, penarikan, "pokok");
+      wajib = _hitungNetSimpanan(simpanan, penarikan, "wajib");
+      sukarela = _hitungNetSimpanan(simpanan, penarikan, "sukarela");
 
-      // Hitung total pinjaman & tagihan bulan ini
-      totalPinjaman = 0;
-      tagihanBulanIni = 0;
-      for (var p in pinjaman) {
-        totalPinjaman += double.tryParse(p['jumlah_pinjaman'].toString()) ?? 0;
-        tagihanBulanIni += double.tryParse(p['angsuran_per_bulan'].toString()) ?? 0;
-      }
-
-      // Build comprehensive history
+      // Bangun riwayat transaksi
       List<Map<String, dynamic>> history = [];
 
       // --- Simpanan Setoran ---
@@ -81,10 +129,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         history.add({
           "icon": Icons.savings,
           "title": "Setoran ${s['jenis_simpanan']?['nama_jenis'] ?? 'Simpanan'}",
-          "date": _formatDate(s['tanggal_menyimpan'] ?? ""),
+          "date": _formatDate(s['tanggal'] ?? ""),
           "amount": "+ Rp ${_formatCurrency(s['nominal'])}",
           "isPositive": true,
-          "tanggal": s['tanggal_menyimpan'] ?? "",
+          "tanggal": s['tanggal'] ?? "",
           "type": "simpanan_setoran",
         });
       }
@@ -94,42 +142,43 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         history.add({
           "icon": Icons.money_off,
           "title": "Penarikan ${t['jenis_simpanan']?['nama_jenis'] ?? 'Simpanan'}",
-          "date": _formatDate(t['tanggal_tarik'] ?? ""),
+          "date": _formatDate(t['tanggal'] ?? ""),
           "amount": "- Rp ${_formatCurrency(t['nominal'])}",
           "isPositive": false,
-          "tanggal": t['tanggal_tarik'] ?? "",
+          "tanggal": t['tanggal'] ?? "",
           "type": "simpanan_penarikan",
         });
       }
 
       // --- Pinjaman ---
       for (var p in pinjaman) {
-        // Pencairan
+        // Pencairan pinjaman
         history.add({
           "icon": Icons.credit_card,
           "title": "Pencairan ${p['jenis_pinjaman']?['nama_jenis'] ?? 'Pinjaman'}",
-          "date": _formatDate(p['tanggal_meminjam'] ?? ""),
+          "date": _formatDate(p['tanggal'] ?? ""),
           "amount": "+ Rp ${_formatCurrency(p['jumlah_pinjaman'])}",
           "isPositive": true,
           "tanggal": p['tanggal_meminjam'] ?? "",
           "type": "pinjaman_pencairan",
         });
 
-        // Angsuran (ambil dari nested field kalau ada)
-        final angsuranList = p['angsuran_set'] ?? p['angsuran'] ?? [];
+      // Angsuran dari field nested (kalau ada)
+      final angsuranList = p['angsuran'] ?? [];
         for (var a in angsuranList) {
           history.add({
             "icon": Icons.payment,
             "title": "Pembayaran Angsuran",
-            "date": _formatDate(a['tanggal_bayar'] ?? a['tanggal_pembayaran'] ?? ""),
-            "amount": "- Rp ${_formatCurrency(a['jumlah_bayar'] ?? a['nominal'])}",
+            "date": _formatDate(a['tanggal_bayar'] ?? ""),
+            "amount": "- Rp ${_formatCurrency(a['nominal'])}",
             "isPositive": false,
-            "tanggal": a['tanggal_bayar'] ?? a['tanggal_pembayaran'] ?? "",
+            "tanggal": a['tanggal_bayar'] ?? "",
             "type": "pinjaman_pembayaran",
           });
         }
       }
 
+      // Urutkan berdasarkan tanggal terbaru
       history.sort((a, b) {
         final tglA = a['tanggal']?.toString();
         final tglB = b['tanggal']?.toString();
@@ -140,54 +189,64 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return dateB.compareTo(dateA);
       });
 
-        _animationController.forward();
-      } catch (e) {
-        print("Error load home data: $e");
-      }
+      setState(() {
+        pokok = _hitungNetSimpanan(simpanan, penarikan, "pokok");
+        wajib = _hitungNetSimpanan(simpanan, penarikan, "wajib");
+        sukarela = _hitungNetSimpanan(simpanan, penarikan, "sukarela");
 
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
+
+        // Ganti ini
+        totalPinjaman = pinjaman.fold(
+          0.0,
+          (sum, p) => sum + (double.tryParse(p['jumlah_pinjaman'].toString()) ?? 0),
+        );
+
+        // SESUDAH
+        tagihanBulanIni = pinjaman.fold(
+          0.0,
+          (sum, p) {
+            // jatuh_tempo adalah angka hari, bukan tanggal
+            if (p['status'] == 'aktif') {
+              sum += double.tryParse(p['angsuran_per_bulan'].toString()) ?? 0;
+            }
+            return sum;
+          },
+        );
+      });
+
+      _animationController.forward();
+    } catch (e) {
+      print("Error load home data: $e");
     }
 
-  double _sumSimpananByJenis(List data, String jenis) {
-    return data
-        .where((s) => s['jenis_simpanan']['nama_jenis'] == jenis)
-        .fold(0.0, (sum, s) => sum + (double.tryParse(s['nominal'].toString()) ?? 0));
-  }
-
-  String _formatCurrency(dynamic val) {
-    final f = NumberFormat.decimalPattern("id");
-    return f.format(double.tryParse(val.toString()) ?? 0);
-  }
-
-  String _formatDate(String dateStr) {
-    try {
-      final d = DateTime.parse(dateStr);
-      return DateFormat("dd MMM yyyy", "id").format(d);
-    } catch (_) {
-      return dateStr;
+    if (mounted) {
+      setState(() => isLoading = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      TabunganPage(
-        nip: widget.user['nip'],
-        nama: widget.user['nama'],
-      ),
-      PinjamanPage(
-        nip: widget.user['nip'],
-        nama: widget.user['nama'],
-      ),
-      _buildHomeContent(), // halaman home
-      HistoryPage(
-        nip: widget.user['nip'],
-        nama: widget.user['nama'],
-      ),
-      ProfilePage(nip: widget.user['nip']),
-    ];
+      final nomorAnggota = widget.user['nomor_anggota'];
+      final nama = widget.user['nama'] ?? '';
+
+      final pages = [
+        TabunganPage(
+          nomorAnggota: nomorAnggota,
+          nama: nama,
+        ),
+        PinjamanPage(
+          nomorAnggota: nomorAnggota,
+          nama: nama,
+        ),
+        _buildHomeContent(),
+        HistoryPage(
+          nomorAnggota: nomorAnggota,
+          nama: nama,
+        ),
+        ProfilePage(nomorAnggota: nomorAnggota),
+      ];
+
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
@@ -308,7 +367,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
  Widget _buildConsistentHeader() {
   return Container(
-    height: 220,
     decoration: const BoxDecoration(
       gradient: LinearGradient(
         begin: Alignment.topCenter,
@@ -444,7 +502,7 @@ Widget _buildUserInfoCard() {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "NIP: ${widget.user['nip'] ?? '-'}",
+                  "No Anggota: ${widget.user['nomor_anggota'] ?? '-'}",
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF757575),

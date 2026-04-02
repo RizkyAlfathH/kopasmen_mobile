@@ -7,32 +7,39 @@ class ResetPasswordPage extends StatefulWidget {
 }
 
 class _ResetPasswordPageState extends State<ResetPasswordPage> {
-  final TextEditingController nipController = TextEditingController();
+  final TextEditingController nomorAnggotaController =
+      TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
-  bool nipValidated = false;
+  bool anggotaValidated = false;
   bool _loading = false;
   String? _error;
 
-  void checkNIP() async {
+  // ================= CEK NOMOR ANGGOTA =================
+  void checkNomorAnggota() async {
     setState(() => _loading = true);
-    String nip = nipController.text.trim();
-    bool exists = await ApiService.checkNomorAnggota(nip);
+
+    String nomorAnggota = nomorAnggotaController.text.trim();
+    bool exists =
+        await ApiService.checkNomorAnggota(nomorAnggota);
+
     setState(() => _loading = false);
 
     if (exists) {
       setState(() {
-        nipValidated = true;
+        anggotaValidated = true;
         _error = null;
       });
     } else {
       setState(() {
-        _error = "NIP tidak ditemukan";
+        _error = "Nomor Anggota tidak ditemukan";
       });
     }
   }
 
+  // ================= RESET PASSWORD =================
   void resetPassword() async {
     String newPassword = passwordController.text.trim();
     String confirmPassword = confirmPasswordController.text.trim();
@@ -48,12 +55,20 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     }
 
     setState(() => _loading = true);
-    bool success = await ApiService.resetPassword(nipController.text.trim(), newPassword);
+
+    bool success = await ApiService.resetPassword(
+      nomorAnggotaController.text.trim(),
+      newPassword,
+    );
+
     setState(() => _loading = false);
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Password berhasil direset, silakan login")),
+        const SnackBar(
+          content:
+              Text("Password berhasil direset, silakan login"),
+        ),
       );
       Navigator.pushReplacementNamed(context, '/login');
     } else {
@@ -83,12 +98,13 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         child: SafeArea(
           child: SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
                 children: [
                   const SizedBox(height: 20),
 
-                  // Back button
+                  // BACK BUTTON
                   Row(
                     children: [
                       Container(
@@ -98,22 +114,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                               Colors.white.withOpacity(0.9),
                               Colors.white.withOpacity(0.8),
                             ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
                           ),
                           shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.white.withOpacity(0.3),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
                         ),
                         child: IconButton(
                           icon: const Icon(
@@ -122,24 +124,18 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                             size: 20,
                           ),
                           onPressed: () {
-                            Navigator.pushReplacementNamed(context, '/login');
+                            Navigator.pushReplacementNamed(
+                                context, '/login');
                           },
                         ),
                       ),
                       const SizedBox(width: 16),
-                      Text(
+                      const Text(
                         "Kembali ke Login",
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: Colors.black87,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            ),
-                          ],
                         ),
                       ),
                     ],
@@ -147,199 +143,115 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
                   const SizedBox(height: 40),
 
-                  // Icon reset password
+                  // LOGO
                   Container(
-  width: 160,
-  height: 160,
-  decoration: BoxDecoration(
-    color: Colors.white,
-    shape: BoxShape.circle,
-    boxShadow: [
-      BoxShadow(
-        color: Colors.black.withOpacity(0.1),
-        blurRadius: 20,
-        offset: const Offset(0, 8),
-      ),
-      BoxShadow(
-        color: Colors.white.withOpacity(0.8),
-        blurRadius: 15,
-        offset: const Offset(0, -5),
-      ),
-    ],
-  ),
-  child: Padding(
-    padding: const EdgeInsets.all(25.0),
-    child: Container(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-      ),
-      child: Image.asset(
-        'assets/images/logo_smea.jpg',
-        width: 110,
-        height: 110,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            width: 110,
-            height: 110,
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.grey[300]!,
-                width: 2,
-              ),
-            ),
-            child: const Icon(
-              Icons.school,
-              size: 50,
-              color: Colors.grey,
-            ),
-          );
-        },
-      ),
-    ),
-  ),
-),
-
+                    width: 160,
+                    height: 160,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(25.0),
+                      child: Image.asset(
+                        'assets/images/logo_smea.jpg',
+                        fit: BoxFit.contain,
+                        errorBuilder:
+                            (context, error, stackTrace) {
+                          return const Icon(Icons.school,
+                              size: 50);
+                        },
+                      ),
+                    ),
+                  ),
 
                   const SizedBox(height: 30),
 
-                  // Title
-                  Text(
+                  const Text(
                     "Reset Password",
                     style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold),
                   ),
 
                   const SizedBox(height: 50),
 
-                  // Card reset password
+                  // CARD
                   Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.white.withOpacity(0.95),
-                          Colors.white.withOpacity(0.90),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.white.withOpacity(0.25),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
+                      color: Colors.white.withOpacity(0.95),
+                      borderRadius:
+                          BorderRadius.circular(24),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(28),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
                         children: [
-                          // Field NIP
-                          const Text("NIP",
-                              style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87)),
+                          const Text("Nomor Anggota"),
                           const SizedBox(height: 10),
+
                           _inputField(
-                            controller: nipController,
-                            hint: "Masukkan NIP...",
-                            icon: Icons.person_outline,
-                            enabled: !nipValidated,
+                            controller:
+                                nomorAnggotaController,
+                            hint:
+                                "Masukkan Nomor Anggota...",
+                            icon:
+                                Icons.person_outline,
+                            enabled:
+                                !anggotaValidated,
                           ),
 
-                          if (!nipValidated) ...[
+                          if (!anggotaValidated) ...[
                             const SizedBox(height: 20),
-                            _actionButton("Cek NIP", checkNIP),
+                            _actionButton(
+                              "Cek Nomor Anggota",
+                              checkNomorAnggota,
+                            ),
                           ],
 
-                          if (nipValidated) ...[
+                          if (anggotaValidated) ...[
                             const SizedBox(height: 24),
-                            const Text("Password Baru",
-                                style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black87)),
+                            const Text("Password Baru"),
                             const SizedBox(height: 10),
                             _inputField(
-                              controller: passwordController,
-                              hint: "Masukkan password baru...",
-                              icon: Icons.lock_outline,
+                              controller:
+                                  passwordController,
+                              hint:
+                                  "Masukkan password baru...",
+                              icon:
+                                  Icons.lock_outline,
                               obscure: true,
                             ),
-
                             const SizedBox(height: 24),
-                            const Text("Konfirmasi Password",
-                                style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black87)),
+                            const Text(
+                                "Konfirmasi Password"),
                             const SizedBox(height: 10),
                             _inputField(
-                              controller: confirmPasswordController,
-                              hint: "Ulangi password...",
-                              icon: Icons.lock_reset,
+                              controller:
+                                  confirmPasswordController,
+                              hint:
+                                  "Ulangi password...",
+                              icon:
+                                  Icons.lock_reset,
                               obscure: true,
                             ),
-
                             const SizedBox(height: 30),
-                            _actionButton("Reset Password", resetPassword),
+                            _actionButton(
+                              "Reset Password",
+                              resetPassword,
+                            ),
                           ],
 
                           const SizedBox(height: 20),
 
-                          // Error message
                           if (_error != null)
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: Colors.red.withOpacity(0.3),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.error_outline,
-                                      color: Colors.red[600], size: 16),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      _error!,
-                                      style: TextStyle(
-                                          color: Colors.red[600],
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            Text(
+                              _error!,
+                              style: const TextStyle(
+                                  color: Colors.red),
                             ),
                         ],
                       ),
@@ -356,6 +268,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     );
   }
 
+  // ================= WIDGET INPUT =================
   Widget _inputField({
     required TextEditingController controller,
     required String hint,
@@ -363,90 +276,29 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     bool obscure = false,
     bool enabled = true,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.grey[50]!, Colors.grey[100]!],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: TextField(
-        controller: controller,
-        obscureText: obscure,
-        enabled: enabled,
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-          prefixIcon: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Icon(icon, color: Colors.grey[600], size: 22),
-          ),
-          border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      enabled: enabled,
+      decoration: InputDecoration(
+        hintText: hint,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
       ),
     );
   }
 
+  // ================= BUTTON =================
   Widget _actionButton(String text, VoidCallback onPressed) {
     return SizedBox(
       width: double.infinity,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFF5C842), Color(0xFFFFD700)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFF5C842).withOpacity(0.4),
-              blurRadius: 15,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: ElevatedButton(
-          onPressed: _loading ? null : onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-          ),
-          child: _loading
-              ? const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.black87),
-                  ),
-                )
-              : Text(
-                  text,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-        ),
+      child: ElevatedButton(
+        onPressed: _loading ? null : onPressed,
+        child: _loading
+            ? const CircularProgressIndicator()
+            : Text(text),
       ),
     );
   }

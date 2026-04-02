@@ -2,19 +2,19 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = "http://127.0.0.1:8000/api";
+  static const String baseUrl = "http://10.143.47.175:8000/api";
 
   // ======================
   // AUTH
   // ======================
 
-  // Login
   static Future<Map<String, dynamic>?> login(
     String nomorAnggota,
     String password,
   ) async {
     final url = Uri.parse("$baseUrl/login/");
-    try { 
+
+    try {
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
@@ -24,21 +24,31 @@ class ApiService {
         }),
       );
 
-      final body = jsonDecode(response.body);
+      final decoded = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        return body;
-      } else if (response.statusCode == 400 || response.statusCode == 404) {
-        return {"error": body["error"] ?? "Login gagal"};
-      } else {
-        return {"error": "Terjadi kesalahan server (${response.statusCode})"};
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        } else {
+          return {"error": "Format response tidak valid"};
+        }
       }
+
+      if (decoded is Map && decoded["error"] != null) {
+        final err = decoded["error"];
+        if (err is List) {
+          return {"error": err.join(", ")};
+        } else {
+          return {"error": err.toString()};
+        }
+      }
+
+      return {"error": "Login gagal (${response.statusCode})"};
     } catch (e) {
       return {"error": "Terjadi kesalahan: $e"};
     }
   }
 
-  // Cek NIP / Nomor Anggota
   static Future<bool> checkNomorAnggota(String nomorAnggota) async {
     final url = Uri.parse("$baseUrl/check-nomor-anggota/");
     final response = await http.post(
@@ -55,8 +65,10 @@ class ApiService {
     }
   }
 
-  // Reset Password
-  static Future<bool> resetPassword(String nomorAnggota, String newPassword) async {
+  static Future<bool> resetPassword(
+    String nomorAnggota,
+    String newPassword,
+  ) async {
     final url = Uri.parse("$baseUrl/reset-password/");
     final response = await http.post(
       url,
@@ -73,9 +85,9 @@ class ApiService {
   // SIMPANAN & PENARIKAN
   // ======================
 
-  // Ambil daftar simpanan berdasarkan NIP
-  static Future<List<dynamic>> getSimpanan(String nip) async {
-    final url = Uri.parse("$baseUrl/$nip/simpanan/");
+  static Future<List<dynamic>> getSimpanan(String nomorAnggota) async {
+    final encoded = Uri.encodeComponent(nomorAnggota.trim());
+    final url = Uri.parse("$baseUrl/simpanan/$encoded/");
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -85,9 +97,9 @@ class ApiService {
     }
   }
 
-  // Ambil daftar penarikan berdasarkan NIP
   static Future<List<dynamic>> getPenarikan(String nip) async {
-    final url = Uri.parse("$baseUrl/$nip/tarik/");
+    final encoded = Uri.encodeComponent(nip.trim());
+    final url = Uri.parse("$baseUrl/tarik/$encoded/");
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -101,9 +113,9 @@ class ApiService {
   // PINJAMAN & ANGSURAN
   // ======================
 
-  // Ambil daftar pinjaman berdasarkan NIP
   static Future<List<dynamic>> getPinjaman(String nip) async {
-    final url = Uri.parse("$baseUrl/$nip/pinjaman/");
+    final encoded = Uri.encodeComponent(nip.trim());
+    final url = Uri.parse("$baseUrl/pinjaman/$encoded/");
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -113,7 +125,6 @@ class ApiService {
     }
   }
 
-  // Ambil daftar angsuran berdasarkan ID pinjaman
   static Future<List<dynamic>> getAngsuran(int idPinjaman) async {
     final url = Uri.parse("$baseUrl/angsuran/$idPinjaman/");
     final response = await http.get(url);
@@ -126,12 +137,12 @@ class ApiService {
   }
 
   // ======================
-  // PROFILE
+  // PROFIL
   // ======================
 
-  // Ambil profil anggota berdasarkan NIP
-  static Future<Map<String, dynamic>> getProfile(String nip) async {
-    final url = Uri.parse("$baseUrl/profil/$nip/");
+  static Future<Map<String, dynamic>> getProfile(String nomorAnggota) async {
+    final encoded = Uri.encodeComponent(nomorAnggota.trim());
+    final url = Uri.parse("$baseUrl/profil/$encoded/");
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -141,18 +152,20 @@ class ApiService {
     }
   }
 
-  // Update profil anggota
   static Future<bool> updateProfile(
-    String nip, {
+    String nomorAnggota, {
+    String? nip,
     String? email,
     String? alamat,
     String? noTelp,
   }) async {
-    final url = Uri.parse("$baseUrl/profil/$nip/update/");
+    final encoded = Uri.encodeComponent(nomorAnggota.trim());
+    final url = Uri.parse("$baseUrl/profil/$encoded/update/");
     final response = await http.put(
       url,
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
+        "nip": nip,
         "email": email,
         "alamat": alamat,
         "no_telp": noTelp,

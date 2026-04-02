@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:tes/page/history_page.dart';
-import 'package:tes/page/home_page.dart';
+import 'package:Kopasmen_Mobile/page/history_page.dart';
+import 'package:Kopasmen_Mobile/page/home_page.dart';
 import '../services/api_service.dart';
 import 'package:intl/intl.dart';
 
 class TabunganPage extends StatefulWidget {
-  final String nip;
+  final String nomorAnggota;
   final String nama;
 
-  const TabunganPage({super.key, required this.nip, this.nama = "User"});
+  const TabunganPage({
+    super.key,
+    required this.nomorAnggota,
+    this.nama = 'User',
+  });
 
   @override
   State<TabunganPage> createState() => _TabunganPageState();
 }
+
 
 class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderStateMixin {
   List<dynamic> _simpanan = [];
@@ -42,8 +47,8 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
   Future<void> _fetchAllData() async {
     try {
       final results = await Future.wait([
-        ApiService.getSimpanan(widget.nip),
-        ApiService.getPenarikan(widget.nip),
+        ApiService.getSimpanan(widget.nomorAnggota),
+        ApiService.getPenarikan(widget.nomorAnggota),
       ]);
       
       setState(() {
@@ -113,7 +118,7 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
       combinedTransactions.add({
         'type': 'simpanan',
         'data': item,
-        'date_field': 'tanggal_simpanan',
+        'date_field': 'tanggal',
         'nominal': nominal,
         'is_positive': true,
         'title': 'Setoran Simpanan ${type[0].toUpperCase()}${type.substring(1)}',
@@ -237,7 +242,7 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                             MaterialPageRoute(
                               builder: (context) => HomePage(
                                 user: {
-                                  'nip': widget.nip,
+                                  'Nomor Anggota': widget.nomorAnggota,
                                   'nama': widget.nama,
                                 },
                               ),
@@ -345,7 +350,7 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                                                       ),
                                                       const SizedBox(width: 6),
                                                       Text(
-                                                        'NIP: ${widget.nip}',
+                                                        'No Anggota: ${widget.nomorAnggota}',
                                                         style: const TextStyle(
                                                           color: Color(0xFF757575),
                                                           fontSize: 14,
@@ -776,7 +781,7 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                             context,
                             MaterialPageRoute(
                               builder: (context) => HistoryPage(
-                                nip: widget.nip,
+                                nomorAnggota: widget.nomorAnggota,
                                 nama: widget.nama,
                               ),
                             ),
@@ -891,13 +896,12 @@ class _TabunganPageState extends State<TabunganPage> with SingleTickerProviderSt
                                   ? 'Penarikan'
                                   : item['type'] == 'deposit'
                                       ? 'Simpanan'
-                                      : 'Transaksi',
-                              style: const TextStyle(
-                                color: Color(0xFF757575),
-                                fontSize: 13,
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w400,
-                              ),
+                                      : (item[transaction['date_field']] != null
+                                          ? DateFormat('dd MMM yyyy').format(
+                                              DateTime.parse(item[transaction['date_field']]),
+                                            )
+                                          : '-'),
+                              style: const TextStyle(fontSize: 13),
                             )
 
                           ],
