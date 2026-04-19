@@ -3,22 +3,6 @@ import '../services/api_service.dart';
 import 'package:intl/intl.dart';
 import 'home_page.dart';
 
-void main() {
-  runApp(const HistoryApp());
-}
-
-class HistoryApp extends StatelessWidget {
-  const HistoryApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      theme: ThemeData(fontFamily: 'Poppins'),
-      home: const HistoryPage(nomorAnggota: "123456789", nama: "John Doe"),
-    );
-  }
-}
-
 class HistoryPage extends StatefulWidget {
   final String nomorAnggota;
   final String nama;
@@ -45,6 +29,19 @@ class _HistoryPageState extends State<HistoryPage> {
   List<dynamic> _penarikanData = [];
   List<dynamic> _pinjamanData = [];
 
+  // Warna tema sesuai web
+  static const Color kYellowLight = Color(0xFFFFDC16);
+  static const Color kYellowMid   = Color(0xFFFFC107);
+  static const Color kYellowDark  = Color(0xFFFFB300);
+  static const Color kBrown       = Color(0xFF4E342E);
+  static const Color kBrownDark   = Color(0xFF3E2723);
+  static const Color kBrownMid    = Color(0xFF6D4C41);
+  static const Color kBrownLight  = Color(0xFF8D6E63);
+  static const Color kWhite       = Colors.white;
+  static const Color kBgPage      = Color(0xFFF5F5F5);
+  static const Color kBorder      = Color(0xFFE0E0E0);
+  static const Color kTextGrey    = Color(0xFF6B6B6B);
+
   @override
   void initState() {
     super.initState();
@@ -52,30 +49,26 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   Future<void> _loadTransactions() async {
-    setState(() {
-      isLoading = true;
-    });
-
+    setState(() => isLoading = true);
     try {
       await Future.wait([
         _fetchSimpananData(),
-        _fetchPenarikanData(),
         _fetchPenarikanData(),
         _fetchPinjamanData(),
       ]);
       _processTransactionData();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading transactions: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading transactions: $e'),
+            backgroundColor: kBrownDark,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        isLoading = false;
-      });
+      setState(() => isLoading = false);
     }
   }
 
@@ -83,7 +76,6 @@ class _HistoryPageState extends State<HistoryPage> {
     try {
       _simpananData = await ApiService.getSimpanan(widget.nomorAnggota);
     } catch (e) {
-      print('Error fetching simpanan: $e');
       _simpananData = [];
     }
   }
@@ -92,7 +84,6 @@ class _HistoryPageState extends State<HistoryPage> {
     try {
       _penarikanData = await ApiService.getPenarikan(widget.nomorAnggota);
     } catch (e) {
-      print('Error fetching penarikan: $e');
       _penarikanData = [];
     }
   }
@@ -101,7 +92,6 @@ class _HistoryPageState extends State<HistoryPage> {
     try {
       _pinjamanData = await ApiService.getPinjaman(widget.nomorAnggota);
     } catch (e) {
-      print('Error fetching pinjaman: $e');
       _pinjamanData = [];
     }
   }
@@ -111,186 +101,153 @@ class _HistoryPageState extends State<HistoryPage> {
 
     // Simpanan
     for (var item in _simpananData) {
-      final amount = double.tryParse(item['nominal'].toString()) ?? 0;
+      final amount   = double.tryParse(item['nominal'].toString()) ?? 0;
       final jenisNama = item['jenis_simpanan']['nama_jenis'].toString();
-      final tanggal = item['tanggal_meminjam'].toString();
-
-      processedTransactions.add(
-        TransactionItem(
-          id: '${widget.nomorAnggota}simpanan${item['id']}',
-          title: jenisNama,
-          description: 'Setoran $jenisNama - ${widget.nama}',
-          amount: '+ Rp ${_formatCurrency(amount)}',
-          date: _formatDate(tanggal),
-          time: _extractTime(tanggal),
-          isPositive: true,
-          type: 'simpanan',
-          userNip: widget.nomorAnggota,
-          rawData: item,
-        ),
-      );
+      final tanggal  = item['tanggal_meminjam'].toString();
+      processedTransactions.add(TransactionItem(
+        id: '${widget.nomorAnggota}simpanan${item['id']}',
+        title: jenisNama,
+        description: 'Setoran $jenisNama - ${widget.nama}',
+        amount: '+ Rp ${_formatCurrency(amount)}',
+        date: _formatDate(tanggal),
+        time: _extractTime(tanggal),
+        isPositive: true,
+        type: 'simpanan',
+        userNip: widget.nomorAnggota,
+        rawData: item,
+      ));
     }
 
     // Penarikan
     for (var item in _penarikanData) {
-      final amount = double.tryParse(item['nominal'].toString()) ?? 0;
-      final tanggal = item['tanggal'].toString();
+      final amount    = double.tryParse(item['nominal'].toString()) ?? 0;
+      final tanggal   = item['tanggal'].toString();
       final jenisNama = item['jenis_simpanan']['nama_jenis'].toString();
-
-      processedTransactions.add(
-        TransactionItem(
-          id: '${widget.nomorAnggota}penarikan${item['id']}',
-          title: 'Penarikan $jenisNama',
-          description: 'Penarikan $jenisNama  - ${widget.nama}',
-          amount: '- Rp ${_formatCurrency(amount)}',
-          date: _formatDate(tanggal),
-          time: _extractTime(tanggal),
-          isPositive: false,
-          type: 'simpanan',
-          userNip: widget.nomorAnggota,
-          rawData: item,
-        ),
-      );
+      processedTransactions.add(TransactionItem(
+        id: '${widget.nomorAnggota}penarikan${item['id']}',
+        title: 'Penarikan $jenisNama',
+        description: 'Penarikan $jenisNama - ${widget.nama}',
+        amount: '- Rp ${_formatCurrency(amount)}',
+        date: _formatDate(tanggal),
+        time: _extractTime(tanggal),
+        isPositive: false,
+        type: 'simpanan',
+        userNip: widget.nomorAnggota,
+        rawData: item,
+      ));
     }
 
     // Pinjaman
     for (var item in _pinjamanData) {
-      final amount = double.tryParse(item['jumlah_pinjaman'].toString()) ?? 0;
-      final jenisNama =
-          item['jenis_pinjaman']?['nama_jenis']?.toString() ?? 'Pinjaman';
-      final tanggal = item['tanggal'].toString();
+      final amount    = double.tryParse(item['jumlah_pinjaman'].toString()) ?? 0;
+      final jenisNama = item['jenis_pinjaman']?['nama_jenis']?.toString() ?? 'Pinjaman';
+      final tanggal   = item['tanggal'].toString();
+      processedTransactions.add(TransactionItem(
+        id: '${widget.nomorAnggota}pinjaman${item['id_pinjaman']}',
+        title: 'Riwayat Pinjaman $jenisNama',
+        description: 'Pinjaman $jenisNama - ${widget.nama}',
+        amount: 'Rp ${_formatCurrency(amount)}',
+        date: _formatDate(tanggal),
+        time: _extractTime(tanggal),
+        isPositive: true,
+        type: 'pinjaman',
+        userNip: widget.nomorAnggota,
+        rawData: item,
+      ));
 
-      // Pencairan pinjaman
-      processedTransactions.add(
-        TransactionItem(
-          id: '${widget.nomorAnggota}pinjaman${item['id_pinjaman']}',
-          title: 'Riwayat Pinjaman $jenisNama',
-          description: 'Pinjaman $jenisNama - ${widget.nama}',
-          amount: 'Rp ${_formatCurrency(amount)}',
-          date: _formatDate(tanggal),
-          time: _extractTime(tanggal),
-          isPositive: true,
-          type: 'pinjaman',
-          userNip: widget.nomorAnggota,
-          rawData: item,
-        ),
-      );
-
-      // Riwayat angsuran (pembayaran cicilan)
       if (item['angsuran'] != null && item['angsuran'] is List) {
-        List<dynamic> angsuranList = item['angsuran'];
-        for (var angsuran in angsuranList) {
-          final angsuranAmount =
-              double.tryParse(angsuran['nominal'].toString()) ?? 0;
+        for (var angsuran in item['angsuran'] as List) {
+          final angsuranAmount  = double.tryParse(angsuran['nominal'].toString()) ?? 0;
           final angsuranTanggal = angsuran['tanggal_bayar'].toString();
-
-          processedTransactions.add(
-            TransactionItem(
-              id: '${widget.nomorAnggota}angsuran${angsuran['id_pembayaran']}',
-              title: 'Pembayaran Angsuran $jenisNama',
-              description: 'Cicilan $jenisNama - ${widget.nama}',
-              amount: 'Rp ${_formatCurrency(angsuranAmount)}', // tanpa minus
-              date: _formatDate(angsuranTanggal),
-              time: _extractTime(angsuranTanggal),
-              isPositive: false, // abaikan, styling nanti di card
-              type: 'pinjaman',
-              userNip: widget.nomorAnggota,
-              rawData: angsuran,
-            ),
-          );
+          processedTransactions.add(TransactionItem(
+            id: '${widget.nomorAnggota}angsuran${angsuran['id_pembayaran']}',
+            title: 'Pembayaran Angsuran $jenisNama',
+            description: 'Cicilan $jenisNama - ${widget.nama}',
+            amount: 'Rp ${_formatCurrency(angsuranAmount)}',
+            date: _formatDate(angsuranTanggal),
+            time: _extractTime(angsuranTanggal),
+            isPositive: false,
+            type: 'pinjaman',
+            userNip: widget.nomorAnggota,
+            rawData: angsuran,
+          ));
         }
       }
     }
 
-    // Sort by date terbaru
+    // Sort terbaru
     processedTransactions.sort((a, b) {
       try {
         final dateA = DateTime.parse(
-          a.rawData['tanggal'] ??
-              a.rawData['tanggal'] ??
-              a.rawData['tanggal'] ??
-              DateTime.now().toString(),
+          a.rawData['tanggal_bayar']?.toString() ??
+          a.rawData['tanggal']?.toString() ??
+          DateTime.now().toString(),
         );
         final dateB = DateTime.parse(
-          b.rawData['tanggal'] ??
-              b.rawData['tanggal'] ??
-              b.rawData['tanggal'] ??
-              DateTime.now().toString(),
+          b.rawData['tanggal_bayar']?.toString() ??
+          b.rawData['tanggal']?.toString() ??
+          DateTime.now().toString(),
         );
         return dateB.compareTo(dateA);
-      } catch (e) {
+      } catch (_) {
         return 0;
       }
     });
 
-    setState(() {
-      transactions = processedTransactions;
-    });
+    setState(() => transactions = processedTransactions);
   }
 
   List<TransactionItem> get filteredTransactions {
-    List<TransactionItem> filtered = transactions;
+    List<TransactionItem> filtered = transactions
+        .where((t) => t.type == tabs[selectedTab].toLowerCase())
+        .toList();
 
-    // Tab filter
-    final currentTabType = tabs[selectedTab].toLowerCase();
-    filtered = filtered.where((transaction) {
-      return transaction.type == currentTabType;
-    }).toList();
-
-    // Search (title, description, date)
     if (searchQuery.isNotEmpty) {
-      filtered = filtered.where((transaction) {
-        final q = searchQuery.toLowerCase();
-        return transaction.title.toLowerCase().contains(q) ||
-            transaction.description.toLowerCase().contains(q) ||
-            transaction.date.toLowerCase().contains(q);
-      }).toList();
+      final q = searchQuery.toLowerCase();
+      filtered = filtered.where((t) =>
+        t.title.toLowerCase().contains(q) ||
+        t.description.toLowerCase().contains(q) ||
+        t.date.toLowerCase().contains(q),
+      ).toList();
     }
 
-    // Ambil hanya 5 terakhir
-    if (filtered.length > 5) {
-      filtered = filtered.sublist(0, 5);
-    }
-
+    if (filtered.length > 5) filtered = filtered.sublist(0, 5);
     return filtered;
   }
 
-  String _formatCurrency(double amount) {
-    final formatter = NumberFormat.decimalPattern('id');
-    return formatter.format(amount);
-  }
+  String _formatCurrency(double amount) =>
+      NumberFormat.decimalPattern('id').format(amount);
 
   String _formatDate(String dateString) {
     try {
-      final date = DateTime.parse(dateString);
-      return DateFormat('dd MMM yyyy', 'id').format(date);
-    } catch (e) {
+      return DateFormat('dd MMM yyyy', 'id').format(DateTime.parse(dateString));
+    } catch (_) {
       return dateString;
     }
   }
 
   String _extractTime(String dateString) {
     try {
-      final date = DateTime.parse(dateString);
-      return DateFormat('HH:mm').format(date);
-    } catch (e) {
+      return DateFormat('HH:mm').format(DateTime.parse(dateString));
+    } catch (_) {
       return '00:00';
     }
   }
 
-  Future<void> _refreshTransactions() async {
-    await _loadTransactions();
-  }
+  Future<void> _refreshTransactions() async => _loadTransactions();
+
+  // ─── BUILD ───────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: kBgPage,
       body: Column(
         children: [
           _buildHeader(),
           Expanded(
             child: RefreshIndicator(
+              color: kBrown,
               onRefresh: _refreshTransactions,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -299,11 +256,11 @@ class _HistoryPageState extends State<HistoryPage> {
                   children: [
                     const SizedBox(height: 20),
                     _buildUserInfo(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     _buildSearchBar(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     _buildTabs(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     _buildTransactionContent(),
                     const SizedBox(height: 100),
                   ],
@@ -316,69 +273,61 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
+  // Header — kuning gradient + teks coklat gelap, persis seperti web
   Widget _buildHeader() {
     return Container(
-      height: 100, // Increased height for better visual balance
       width: double.infinity,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFFFDC16), Color(0xFFFFE554)],
+          colors: [kYellowLight, kYellowMid, kYellowDark],
         ),
       ),
       child: SafeArea(
+        bottom: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 25),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
+              // Tombol back
               GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => HomePage(
-                        user: {
-                          'No Anggota': widget.nomorAnggota,
-                          'nama': widget.nama,
-                        },
-                      ),
-                    ),
-                  );
-                },
-                child: Container(
-                  margin: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: const Icon(
-                      Icons.arrow_back_ios_new,
-                      color: Color(0xFF4E342E),
-                      size: 20,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => HomePage(
+                      user: {
+                        'No Anggota': widget.nomorAnggota,
+                        'nama': widget.nama,
+                      },
                     ),
                   ),
                 ),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back_ios_new,
+                    color: kBrownDark,
+                    size: 18,
+                  ),
+                ),
               ),
-              const SizedBox(width: 15),
+              const SizedBox(width: 14),
+
+              // Judul
               Expanded(
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       'Riwayat Transaksi',
                       style: TextStyle(
-                        color: Color(0xFF4E342E),
+                        color: kBrownDark,
                         fontSize: 18,
                         fontFamily: 'Poppins',
                         fontWeight: FontWeight.w700,
@@ -388,7 +337,7 @@ class _HistoryPageState extends State<HistoryPage> {
                     Text(
                       'Detail aktivitas keuangan Anda',
                       style: TextStyle(
-                        color: Color(0xFF4E342E).withOpacity(0.7),
+                        color: kBrown.withOpacity(0.7),
                         fontSize: 12,
                         fontFamily: 'Poppins',
                         fontWeight: FontWeight.w500,
@@ -397,13 +346,15 @@ class _HistoryPageState extends State<HistoryPage> {
                   ],
                 ),
               ),
+
+              // Icon kanan
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.history, color: Color(0xFF4E342E), size: 20),
+                child: const Icon(Icons.history, color: kBrownDark, size: 20),
               ),
             ],
           ),
@@ -412,27 +363,34 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
+  // User info card — border kuning, background kuning transparan
   Widget _buildUserInfo() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFDC16).withOpacity(0.1),
+        color: kYellowLight.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFFDC16)),
+        border: Border.all(color: kYellowLight, width: 1.2),
       ),
       child: Row(
         children: [
+          // Avatar
           CircleAvatar(
-            backgroundColor: const Color(0xFFFFDC16),
+            radius: 22,
+            backgroundColor: kYellowLight,
             child: Text(
               widget.nama.isNotEmpty ? widget.nama[0].toUpperCase() : 'U',
               style: const TextStyle(
-                color: Color(0xFF4E342E),
-                fontWeight: FontWeight.bold,
+                color: kBrownDark,
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
               ),
             ),
           ),
           const SizedBox(width: 12),
+
+          // Nama & No Anggota
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -440,33 +398,40 @@ class _HistoryPageState extends State<HistoryPage> {
                 Text(
                   widget.nama,
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF4E342E),
+                    fontSize: 15,
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w700,
+                    color: kBrown,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
-                  'No Anggota: ${widget.nomorAnggota}',
+                  'No. Anggota: ${widget.nomorAnggota}',
                   style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF6B6B6B),
+                    fontSize: 12,
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w500,
+                    color: kTextGrey,
                   ),
                 ),
               ],
             ),
           ),
+
+          // Badge jumlah transaksi
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFDC16),
+              color: kYellowLight,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               '${filteredTransactions.length} Transaksi',
               style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF4E342E),
+                fontSize: 11,
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w700,
+                color: kBrownDark,
               ),
             ),
           ),
@@ -475,225 +440,233 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
+  // Search bar — putih bersih, border abu tipis
   Widget _buildSearchBar() {
     return Container(
-      height: 42,
+      height: 44,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
+        color: kWhite,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: kBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: TextField(
-        onChanged: (value) {
-          setState(() {
-            searchQuery = value;
-          });
-        },
+        onChanged: (v) => setState(() => searchQuery = v),
         style: const TextStyle(
           fontSize: 14,
-          color: Color(0xFF4E342E),
+          fontFamily: 'Poppins',
+          color: kBrown,
           fontWeight: FontWeight.w500,
         ),
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           hintText: 'Cari transaksi (judul / tanggal)...',
           hintStyle: TextStyle(
-            color: Color(0x994E342E),
-            fontSize: 14,
+            color: kBrown.withOpacity(0.4),
+            fontSize: 13,
+            fontFamily: 'Poppins',
             fontWeight: FontWeight.w400,
           ),
-          prefixIcon: Icon(Icons.search, color: Color(0xFFBCAAA4), size: 20),
+          prefixIcon: const Icon(Icons.search, color: kBrownLight, size: 20),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
     );
   }
 
+  // Tab Simpanan / Pinjaman — underline kuning aktif
   Widget _buildTabs() {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            children: [
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedTab = 0;
-                  });
-                },
-                child: Text(
-                  tabs[0],
-                  style: TextStyle(
-                    color: selectedTab == 0
-                        ? const Color(0xFF4E342E)
-                        : const Color(0xCE4E342E),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: kBorder, width: 1)),
+      ),
+      child: Row(
+        children: List.generate(tabs.length, (i) {
+          final isActive = selectedTab == i;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => selectedTab = i),
+              behavior: HitTestBehavior.opaque,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Text(
+                      tabs[i],
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: isActive ? kBrownDark : kBrown.withOpacity(0.5),
+                        fontSize: 15,
+                        fontFamily: 'Poppins',
+                        fontWeight:
+                            isActive ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                    ),
                   ),
-                ),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: isActive ? kYellowLight : Colors.transparent,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              if (selectedTab == 0)
-                Container(
-                  height: 5,
-                  width: 87,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFDC16),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        Container(width: 4, height: 29, color: const Color(0xFFCCCCCC)),
-        Expanded(
-          child: Column(
-            children: [
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedTab = 1;
-                  });
-                },
-                child: Text(
-                  tabs[1],
-                  style: TextStyle(
-                    color: selectedTab == 1
-                        ? const Color(0xFF4E342E)
-                        : const Color(0xCE4E342E),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (selectedTab == 1)
-                Container(
-                  height: 5,
-                  width: 87,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFDC16),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
+            ),
+          );
+        }),
+      ),
     );
   }
 
+  // Konten transaksi
   Widget _buildTransactionContent() {
     if (isLoading) {
-      return const Center(
-        child: Column(
-          children: [
-            SizedBox(height: 50),
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFDC16)),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Memuat riwayat transaksi...',
-              style: TextStyle(color: Color(0xFF6B6B6B), fontSize: 14),
-            ),
-          ],
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 60),
+        child: Center(
+          child: Column(
+            children: [
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(kYellowMid),
+                strokeWidth: 3,
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Memuat riwayat transaksi...',
+                style: TextStyle(
+                  color: kTextGrey,
+                  fontSize: 13,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    final filteredList = filteredTransactions;
-
-    if (filteredList.isEmpty) {
-      return _buildEmptyState();
-    }
+    final list = filteredTransactions;
+    if (list.isEmpty) return _buildEmptyState();
 
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: filteredList.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 16),
-      itemBuilder: (context, index) {
-        return _buildTransactionCard(filteredList[index]);
-      },
+      itemCount: list.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (_, i) => _buildTransactionCard(list[i]),
     );
   }
 
+  // Empty state
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        children: [
-          const SizedBox(height: 50),
-          Icon(Icons.history, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 20),
-          Text(
-            'Belum ada transaksi ${tabs[selectedTab].toLowerCase()}',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF6B6B6B),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 60),
+      child: Center(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: kYellowLight.withOpacity(0.1),
+                shape: BoxShape.circle,
+                border: Border.all(color: kYellowLight, width: 1.5),
+              ),
+              child: const Icon(Icons.history, size: 48, color: kBrown),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'untuk ${widget.nama}',
-            style: const TextStyle(fontSize: 14, color: Color(0xFF6B6B6B)),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: _refreshTransactions,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Muat Ulang'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFDC16),
-              foregroundColor: const Color(0xFF4E342E),
+            const SizedBox(height: 20),
+            Text(
+              'Belum ada transaksi ${tabs[selectedTab].toLowerCase()}',
+              style: const TextStyle(
+                fontSize: 15,
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w600,
+                color: kBrown,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              'untuk ${widget.nama}',
+              style: const TextStyle(
+                fontSize: 13,
+                fontFamily: 'Poppins',
+                color: kTextGrey,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _refreshTransactions,
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text(
+                'Muat Ulang',
+                style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kYellowLight,
+                foregroundColor: kBrownDark,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
+  // Transaction card — putih bersih, icon kuning, teks coklat
   Widget _buildTransactionCard(TransactionItem transaction) {
+    final isPinjaman = transaction.type == 'pinjaman';
+    final amountColor = isPinjaman
+        ? kBrown
+        : (transaction.isPositive
+            ? const Color(0xFF2E7D32)   // hijau gelap untuk masuk
+            : const Color(0xFFC62828)); // merah gelap untuk keluar
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: kWhite,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
+        border: Border.all(color: kBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 3,
-            offset: const Offset(0, 1),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Row(
         children: [
+          // Icon container — kuning dengan icon coklat
           Container(
-            width: 40,
-            height: 40,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFDC16),
+              color: kYellowLight,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
-              transaction.type == 'simpanan'
-                  ? Icons.account_balance_wallet
-                  : Icons.credit_card,
-              color: const Color(0xFF4E342E),
+              isPinjaman ? Icons.credit_card : Icons.account_balance_wallet,
+              color: kBrownDark,
               size: 22,
             ),
           ),
           const SizedBox(width: 12),
+
+          // Info transaksi
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -701,8 +674,9 @@ class _HistoryPageState extends State<HistoryPage> {
                 Text(
                   transaction.title,
                   style: const TextStyle(
-                    color: Color(0xFF4E342E),
-                    fontSize: 15,
+                    color: kBrown,
+                    fontSize: 14,
+                    fontFamily: 'Poppins',
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -710,41 +684,37 @@ class _HistoryPageState extends State<HistoryPage> {
                 Text(
                   transaction.description,
                   style: const TextStyle(
-                    color: Color(0xFF6D4C41),
-                    fontSize: 13,
+                    color: kBrownMid,
+                    fontSize: 12,
+                    fontFamily: 'Poppins',
                     fontWeight: FontWeight.w400,
                   ),
                 ),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(
-                      Icons.calendar_today,
-                      size: 13,
-                      color: Color(0xFF8D6E63),
-                    ),
+                    const Icon(Icons.calendar_today,
+                        size: 12, color: kBrownLight),
                     const SizedBox(width: 4),
                     Text(
                       transaction.date,
                       style: const TextStyle(
-                        color: Color(0xFF8D6E63),
-                        fontSize: 12,
+                        color: kBrownLight,
+                        fontSize: 11,
+                        fontFamily: 'Poppins',
                       ),
                     ),
-                    // Only show time if it's not "00:00"
                     if (transaction.time != '00:00') ...[
-                      const SizedBox(width: 10),
-                      const Icon(
-                        Icons.access_time,
-                        size: 13,
-                        color: Color(0xFF8D6E63),
-                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.access_time,
+                          size: 12, color: kBrownLight),
                       const SizedBox(width: 4),
                       Text(
                         transaction.time,
                         style: const TextStyle(
-                          color: Color(0xFF8D6E63),
-                          fontSize: 12,
+                          color: kBrownLight,
+                          fontSize: 11,
+                          fontFamily: 'Poppins',
                         ),
                       ),
                     ],
@@ -753,16 +723,15 @@ class _HistoryPageState extends State<HistoryPage> {
               ],
             ),
           ),
+
+          // Nominal
           Text(
             transaction.amount,
             style: TextStyle(
-              color: (transaction.type == 'pinjaman')
-                  ? const Color(
-                      0xFF4E342E,
-                    ) // netral coklat untuk pinjaman & pembayaran
-                  : (transaction.isPositive ? Colors.green[700] : Colors.red),
+              color: amountColor,
               fontSize: 14,
-              fontWeight: FontWeight.bold,
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -770,6 +739,8 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 }
+
+// ─── Model ───────────────────────────────────────────────────────────────────
 
 class TransactionItem {
   final String id;
@@ -783,7 +754,7 @@ class TransactionItem {
   final String userNip;
   final Map<String, dynamic> rawData;
 
-  TransactionItem({
+  const TransactionItem({
     required this.id,
     required this.title,
     required this.description,

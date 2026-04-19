@@ -15,14 +15,24 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-
-
 class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? anggota;
   bool isLoading = true;
-  ScrollController _scrollController = ScrollController();
+  final ScrollController _scrollController = ScrollController();
   double _headerHeight = 300.0;
   double _scrollOffset = 0.0;
+
+  // Warna tema sesuai web
+  static const Color kYellowLight = Color(0xFFFFDC16);
+  static const Color kYellowMid = Color(0xFFFFC107);
+  static const Color kYellowDark = Color(0xFFFFB300);
+  static const Color kBrown = Color(0xFF4E342E);
+  static const Color kBrownDark = Color(0xFF3E2723);
+  static const Color kWhite = Colors.white;
+  static const Color kBgPage = Color(0xFFF5F5F5);
+  static const Color kBgSection = Color(0xFFF8F9FA);
+  static const Color kTextDark = Color(0xFF2E2E2E);
+  static const Color kTextGrey = Color(0xFF9E9E9E);
 
   @override
   void initState() {
@@ -59,7 +69,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: kBrownDark,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -72,7 +82,7 @@ class _ProfilePageState extends State<ProfilePage> {
       margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: kWhite,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -88,21 +98,14 @@ class _ProfilePageState extends State<ProfilePage> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Color(0xFF4E342E).withOpacity(0.8),
-                  Color(0xFF4E342E).withOpacity(0.6),
-                ],
+              gradient: const LinearGradient(
+                colors: [kBrown, kBrownDark],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 20,
-            ),
+            child: Icon(icon, color: kWhite, size: 20),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -111,8 +114,8 @@ class _ProfilePageState extends State<ProfilePage> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    color: Color(0xFF9E9E9E),
+                  style: const TextStyle(
+                    color: kTextGrey,
                     fontSize: 12,
                     fontFamily: 'Poppins',
                     fontWeight: FontWeight.w500,
@@ -123,7 +126,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   value.isNotEmpty ? value : '-',
                   style: const TextStyle(
-                    color: Color(0xFF2E2E2E),
+                    color: kTextDark,
                     fontSize: 15,
                     fontFamily: 'Poppins',
                     fontWeight: FontWeight.w600,
@@ -141,7 +144,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildHeaderContent() {
     double opacity = 1.0 - (_scrollOffset / 200).clamp(0.0, 1.0);
     double scale = 1.0 - (_scrollOffset / 1000).clamp(0.0, 0.3);
-    
+
     return Transform.scale(
       scale: scale,
       child: Opacity(
@@ -149,55 +152,45 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Column(
           children: [
             const SizedBox(height: 60),
-            // Profile Avatar - hanya menampilkan tanpa tombol edit
+
+            // Avatar
             Container(
-              width: 120,
-              height: 120,
+              width: 100,
+              height: 100,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.white.withOpacity(0.9),
-                    Colors.white.withOpacity(0.7),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(60),
-                border: Border.all(color: Colors.white, width: 4),
+                color: kWhite,
+                shape: BoxShape.circle,
+                border: Border.all(color: kWhite, width: 4),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withOpacity(0.15),
                     blurRadius: 20,
-                    offset: const Offset(0, 10),
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
-              child: Center(
-                child: Icon(
-                  Icons.person,
-                  size: 60,
-                  color: Color(0xFF757575),
-                ),
+              child: const Center(
+                child: Icon(Icons.person, size: 52, color: kBrown),
               ),
             ),
-            const SizedBox(height: 20),
-            
-            // Name with enhanced typography
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+            const SizedBox(height: 16),
+
+            // Nama — putih agar terbaca di atas kuning
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
                 anggota!['nama'] ?? 'Nama tidak tersedia',
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
+                  color: kWhite,
+                  fontSize: 22,
                   fontFamily: 'Poppins',
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
+                  letterSpacing: 0.3,
                   shadows: [
                     Shadow(
                       color: Colors.black26,
                       offset: Offset(0, 2),
-                      blurRadius: 4,
+                      blurRadius: 6,
                     ),
                   ],
                 ),
@@ -205,21 +198,16 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             const SizedBox(height: 12),
-            
-            // Enhanced NIP Badge
+
+            // Badge No Anggota — coklat gelap agar kontras di kuning
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.white, Colors.white.withOpacity(0.9)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: kBrownDark,
                 borderRadius: BorderRadius.circular(25),
-                border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withOpacity(0.2),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -231,24 +219,24 @@ class _ProfilePageState extends State<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: Color(0xFF4E342E),
-                      borderRadius: BorderRadius.circular(8),
+                      color: kYellowLight,
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.badge,
-                      size: 14,
-                      color: Colors.white,
+                      size: 13,
+                      color: kBrownDark,
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'No Anggota : ${anggota!['nomor_anggota'] ?? '-'}',
+                    'No. Anggota : ${anggota!['nomor_anggota'] ?? '-'}',
                     style: const TextStyle(
-                      color: Color(0xFF4E342E),
-                      fontSize: 13,
+                      color: kYellowLight,
+                      fontSize: 12,
                       fontFamily: 'Poppins',
                       fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
+                      letterSpacing: 0.3,
                     ),
                   ),
                 ],
@@ -263,12 +251,12 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: kBgPage,
       body: isLoading
           ? Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFFFFDC16), Color(0xFFFFC107)],
+                  colors: [kYellowLight, kYellowMid, kYellowDark],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
@@ -280,34 +268,34 @@ class _ProfilePageState extends State<ProfilePage> {
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: kWhite,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.1),
                             blurRadius: 20,
-                            offset: const Offset(0, 10),
+                            offset: const Offset(0, 8),
                           ),
                         ],
                       ),
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4E342E)),
+                      child: const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(kBrown),
                         strokeWidth: 3,
                       ),
                     ),
-                    SizedBox(height: 20),
-                    Text(
+                    const SizedBox(height: 20),
+                    const Text(
                       'Memuat data profil...',
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
+                        color: kBrownDark,
+                        fontSize: 15,
                         fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                         shadows: [
                           Shadow(
-                            color: Colors.black26,
-                            offset: Offset(0, 2),
-                            blurRadius: 4,
+                            color: Colors.black12,
+                            offset: Offset(0, 1),
+                            blurRadius: 3,
                           ),
                         ],
                       ),
@@ -318,9 +306,9 @@ class _ProfilePageState extends State<ProfilePage> {
             )
           : anggota == null
               ? Container(
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Color(0xFFFFDC16), Color(0xFFFFC107)],
+                      colors: [kYellowLight, kYellowMid, kYellowDark],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                     ),
@@ -332,35 +320,35 @@ class _ProfilePageState extends State<ProfilePage> {
                         Container(
                           padding: const EdgeInsets.all(30),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.9),
+                            color: kWhite,
                             borderRadius: BorderRadius.circular(25),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.1),
                                 blurRadius: 20,
-                                offset: const Offset(0, 10),
+                                offset: const Offset(0, 8),
                               ),
                             ],
                           ),
-                          child: Icon(
-                            Icons.person_off,
-                            size: 60,
-                            color: Color(0xFF4E342E),
+                          child: const Icon(
+                            Icons.person_off_outlined,
+                            size: 56,
+                            color: kBrown,
                           ),
                         ),
-                        const SizedBox(height: 24),
-                        Text(
+                        const SizedBox(height: 20),
+                        const Text(
                           'Data profil tidak ditemukan',
                           style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
+                            color: kBrownDark,
+                            fontSize: 16,
                             fontFamily: 'Poppins',
                             fontWeight: FontWeight.w600,
                             shadows: [
                               Shadow(
-                                color: Colors.black26,
-                                offset: Offset(0, 2),
-                                blurRadius: 4,
+                                color: Colors.black12,
+                                offset: Offset(0, 1),
+                                blurRadius: 3,
                               ),
                             ],
                           ),
@@ -371,149 +359,98 @@ class _ProfilePageState extends State<ProfilePage> {
                 )
               : Stack(
                   children: [
-                    // Background gradient
+                    // Header background kuning gradient
                     Container(
                       height: _headerHeight,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [
-                            Color(0xFFFFDC16),
-                            Color(0xFFFFC107),
-                            Color(0xFFFFB300),
-                          ],
+                          colors: [kYellowLight, kYellowMid, kYellowDark],
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                         ),
                       ),
                     ),
-                    
-                    // Main scrollable content
+
+                    // Scrollable content
                     CustomScrollView(
                       controller: _scrollController,
                       slivers: [
-                        // Header section
+                        // Header
                         SliverToBoxAdapter(
-                          child: Container(
+                          child: SizedBox(
                             height: _headerHeight,
                             child: _buildHeaderContent(),
                           ),
                         ),
-                        
+
                         // Info section
                         SliverToBoxAdapter(
                           child: Container(
-                            margin: const EdgeInsets.only(top: 20),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8F9FA),
+                            margin: const EdgeInsets.only(top: 16),
+                            decoration: const BoxDecoration(
+                              color: kBgSection,
                               borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(30),
-                                topRight: Radius.circular(30),
+                                topLeft: Radius.circular(28),
+                                topRight: Radius.circular(28),
                               ),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const SizedBox(height: 30),
-                                
-                                // Section Title with enhanced design
+                                const SizedBox(height: 28),
+
+                                // Section title — sesuai web: kotak coklat + teks putih
                                 Container(
-                                  margin: const EdgeInsets.symmetric(horizontal: 16.0),
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 10),
                                   decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [Color(0xFF4E342E), Color(0xFF3E2723)],
+                                    gradient: const LinearGradient(
+                                      colors: [kBrown, kBrownDark],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                     ),
-                                    borderRadius: BorderRadius.circular(15),
+                                    borderRadius: BorderRadius.circular(12),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Color(0xFF4E342E).withOpacity(0.3),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
+                                        color: kBrown.withOpacity(0.3),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 3),
                                       ),
                                     ],
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.info_outline,
-                                        color: Colors.white,
-                                        size: 18,
-                                      ),
-                                      const SizedBox(width: 8),
+                                    children: const [
+                                      Icon(Icons.info_outline,
+                                          color: kWhite, size: 16),
+                                      SizedBox(width: 8),
                                       Text(
                                         'Informasi Pribadi',
                                         style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 16,
+                                          color: kWhite,
+                                          fontSize: 14,
                                           fontFamily: 'Poppins',
                                           fontWeight: FontWeight.w600,
-                                          letterSpacing: 0.5,
+                                          letterSpacing: 0.3,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                const SizedBox(height: 20),
-                                
-                                // Info Items
-                                _buildInfoItem(
-                                  'Nama Lengkap',
-                                  anggota!['nama'] ?? '-',
-                                  Icons.person_outline,
-                                ),
-                                
-                                _buildInfoItem(
-                                  'Nomor Induk Pegawai',
-                                  anggota!['nip'] ?? '-',
-                                  Icons.badge_outlined,
-                                ),
-                                
-                                _buildInfoItem(
-                                  'Jenis Kelamin',
-                                  anggota!['jenis_kelamin'] ?? '-',
-                                  Icons.people_outline,
-                                ),
+                                const SizedBox(height: 16),
 
-                               _buildInfoItem(
-                                  'Umur',
-                                  '${anggota!['umur'] ?? '-'}',
-                                  Icons.calendar_today,
-                                ),
+                                // Info items
+                                _buildInfoItem('Nama Lengkap', anggota!['nama'] ?? '-', Icons.person_outline),
+                                _buildInfoItem('Nomor Induk Pegawai', anggota!['nip'] ?? '-', Icons.badge_outlined),
+                                _buildInfoItem('Jenis Kelamin', anggota!['jenis_kelamin'] ?? '-', Icons.people_outline),
+                                _buildInfoItem('Umur', '${anggota!['umur'] ?? '-'}', Icons.cake_outlined),
+                                _buildInfoItem('Profesi', anggota!['pekerjaan'] ?? '-', Icons.work_outline),
+                                _buildInfoItem('Tanggal Bergabung', anggota!['tanggal_daftar'] ?? '-', Icons.calendar_today_outlined),
+                                _buildInfoItem('Alamat Email', anggota!['email'] ?? '-', Icons.email_outlined),
+                                _buildInfoItem('Alamat Rumah', anggota!['alamat'] ?? '-', Icons.location_on_outlined),
+                                _buildInfoItem('Nomor Telepon', anggota!['no_telp'] ?? '-', Icons.phone_outlined),
 
-
-                                _buildInfoItem(
-                                  'Profesi',
-                                  anggota!['pekerjaan'] ?? '-',
-                                  Icons.assignment_ind,
-                                ),
-                                
-                                _buildInfoItem(
-                                  'Tanggal Bergabung',
-                                  anggota!['tanggal_daftar'] ?? '-',
-                                  Icons.calendar_today_outlined,
-                                ),
-                                
-                                _buildInfoItem(
-                                  'Alamat Email',
-                                  anggota!['email'] ?? '-',
-                                  Icons.email_outlined,
-                                ),
-                                
-                                _buildInfoItem(
-                                  'Alamat Rumah',
-                                  anggota!['alamat'] ?? '-',
-                                  Icons.location_on_outlined,
-                                ),
-                                
-                                _buildInfoItem(
-                                  'Nomor Telepon',
-                                  anggota!['no_telp'] ?? '-',
-                                  Icons.phone_outlined,
-                                ),
-                                
                                 const SizedBox(height: 50),
                               ],
                             ),
@@ -521,8 +458,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ],
                     ),
-                    
-                    // Floating title that appears when scrolling
+
+                    // Floating app bar saat scroll
                     Positioned(
                       top: 0,
                       left: 0,
@@ -531,13 +468,10 @@ class _ProfilePageState extends State<ProfilePage> {
                         opacity: _scrollOffset > 150 ? 1.0 : 0.0,
                         duration: const Duration(milliseconds: 200),
                         child: Container(
-                          height: 100,
-                          decoration: BoxDecoration(
+                          height: 90,
+                          decoration: const BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [
-                                Color(0xFFFFDC16),
-                                Color(0xFFFFDC16).withOpacity(0.9),
-                              ],
+                              colors: [kYellowLight, kYellowMid],
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
                             ),
@@ -545,10 +479,10 @@ class _ProfilePageState extends State<ProfilePage> {
                           child: SafeArea(
                             child: Center(
                               child: Text(
-                                anggota!['nama']?.toString() ?? 'Profile',
+                                anggota!['nama']?.toString() ?? 'Profil',
                                 style: const TextStyle(
-                                  color: Color(0xFF4E342E),
-                                  fontSize: 18,
+                                  color: kBrownDark,
+                                  fontSize: 16,
                                   fontFamily: 'Poppins',
                                   fontWeight: FontWeight.w700,
                                 ),

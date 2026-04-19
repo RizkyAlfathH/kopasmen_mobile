@@ -16,66 +16,62 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
-  int _currentIndex = 2; 
+  int _currentIndex = 2;
   bool isLoading = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
   double totalPinjaman = 0;
   double tagihanBulanIni = 0;
-
   double pokok = 0;
   double wajib = 0;
   double sukarela = 0;
 
-  double _hitungNetSimpanan(
-    List simpanan,
-    List penarikan,
-    String jenis,
-  ) {
-    double total = 0;
+  // Warna tema sesuai web
+  static const Color kYellowLight = Color(0xFFFFDC16);
+  static const Color kYellowMid   = Color(0xFFFFC107);
+  static const Color kYellowDark  = Color(0xFFFFB300);
+  static const Color kBrown       = Color(0xFF4E342E);
+  static const Color kBrownDark   = Color(0xFF3E2723);
+  static const Color kWhite       = Colors.white;
+  static const Color kBgPage      = Color(0xFFF5F5F5);
+  static const Color kTextGrey    = Color(0xFF757575);
+  static const Color kGreen       = Color(0xFF2E7D32);
+  static const Color kBlue        = Color(0xFF1565C0);
+  static const Color kPurple      = Color(0xFF6A1B9A);
+  static const Color kRed         = Color(0xFFC62828);
 
-    // Tambah setoran
+  double _hitungNetSimpanan(List simpanan, List penarikan, String jenis) {
+    double total = 0;
     for (var s in simpanan) {
-      final nama = s['jenis_simpanan']?['nama_jenis']
-              ?.toString()
-              .toLowerCase() ?? '';
+      final nama = s['jenis_simpanan']?['nama_jenis']?.toString().toLowerCase() ?? '';
       if (nama.contains(jenis.toLowerCase())) {
         total += double.tryParse(s['nominal'].toString()) ?? 0;
       }
     }
-
-    // Kurangi penarikan
     for (var p in penarikan) {
-      final nama = p['jenis_simpanan']?['nama_jenis']
-              ?.toString()
-              .toLowerCase() ?? '';
+      final nama = p['jenis_simpanan']?['nama_jenis']?.toString().toLowerCase() ?? '';
       if (nama.contains(jenis.toLowerCase())) {
         total -= double.tryParse(p['nominal'].toString()) ?? 0;
       }
     }
-
     return total < 0 ? 0 : total;
   }
 
   String _formatCurrency(dynamic value) {
     if (value == null) return "0";
     final number = num.tryParse(value.toString()) ?? 0;
-    final formatter = NumberFormat("#,##0", "id_ID");
-    return formatter.format(number);
+    return NumberFormat("#,##0", "id_ID").format(number);
   }
 
   String _formatDate(String dateStr) {
     if (dateStr.isEmpty) return "-";
     try {
-      final date = DateTime.parse(dateStr);
-      return DateFormat('dd MMM yyyy', 'id_ID').format(date);
-    } catch (e) {
-      return dateStr; // fallback kalau parsing gagal
+      return DateFormat('dd MMM yyyy', 'id_ID').format(DateTime.parse(dateStr));
+    } catch (_) {
+      return dateStr;
     }
   }
-
-
 
   @override
   void initState() {
@@ -87,8 +83,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    
-    print("User login: ${widget.user}");
     _loadData();
   }
 
@@ -99,113 +93,28 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Future<void> _loadData() async {
-  if (!mounted) return;
-  setState(() => isLoading = true);
+    if (!mounted) return;
+    setState(() => isLoading = true);
 
-  try {
-    final nomorAnggota = widget.user['nomor_anggota'];  // ← tambah ini
-    final nomorAnggotaStr = nomorAnggota.toString();
-    final simpanan = await ApiService.getSimpanan(nomorAnggotaStr);
-    print("simpanan ok: ${simpanan.length}");
-    final pinjaman = await ApiService.getPinjaman(nomorAnggotaStr);
-    print("pinjaman ok: ${pinjaman.length}");
-    final penarikan = await ApiService.getPenarikan(nomorAnggotaStr);
-    print("penarikan ok: ${penarikan.length}");
-
-    print("RAW pinjaman[0]: ${pinjaman.isNotEmpty ? pinjaman[0] : 'kosong'}");
-    print("RAW simpanan[0]: ${simpanan.isNotEmpty ? simpanan[0] : 'kosong'}");
-    print("RAW penarikan[0]: ${penarikan.isNotEmpty ? penarikan[0] : 'kosong'}");
-
-      // Hitung total simpanan
-      pokok = _hitungNetSimpanan(simpanan, penarikan, "pokok");
-      wajib = _hitungNetSimpanan(simpanan, penarikan, "wajib");
-      sukarela = _hitungNetSimpanan(simpanan, penarikan, "sukarela");
-
-      // Bangun riwayat transaksi
-      List<Map<String, dynamic>> history = [];
-
-      // --- Simpanan Setoran ---
-      for (var s in simpanan) {
-        history.add({
-          "icon": Icons.savings,
-          "title": "Setoran ${s['jenis_simpanan']?['nama_jenis'] ?? 'Simpanan'}",
-          "date": _formatDate(s['tanggal'] ?? ""),
-          "amount": "+ Rp ${_formatCurrency(s['nominal'])}",
-          "isPositive": true,
-          "tanggal": s['tanggal'] ?? "",
-          "type": "simpanan_setoran",
-        });
-      }
-
-      // --- Penarikan Simpanan ---
-      for (var t in penarikan) {
-        history.add({
-          "icon": Icons.money_off,
-          "title": "Penarikan ${t['jenis_simpanan']?['nama_jenis'] ?? 'Simpanan'}",
-          "date": _formatDate(t['tanggal'] ?? ""),
-          "amount": "- Rp ${_formatCurrency(t['nominal'])}",
-          "isPositive": false,
-          "tanggal": t['tanggal'] ?? "",
-          "type": "simpanan_penarikan",
-        });
-      }
-
-      // --- Pinjaman ---
-      for (var p in pinjaman) {
-        // Pencairan pinjaman
-        history.add({
-          "icon": Icons.credit_card,
-          "title": "Pencairan ${p['jenis_pinjaman']?['nama_jenis'] ?? 'Pinjaman'}",
-          "date": _formatDate(p['tanggal'] ?? ""),
-          "amount": "+ Rp ${_formatCurrency(p['jumlah_pinjaman'])}",
-          "isPositive": true,
-          "tanggal": p['tanggal_meminjam'] ?? "",
-          "type": "pinjaman_pencairan",
-        });
-
-      // Angsuran dari field nested (kalau ada)
-      final angsuranList = p['angsuran'] ?? [];
-        for (var a in angsuranList) {
-          history.add({
-            "icon": Icons.payment,
-            "title": "Pembayaran Angsuran",
-            "date": _formatDate(a['tanggal_bayar'] ?? ""),
-            "amount": "- Rp ${_formatCurrency(a['nominal'])}",
-            "isPositive": false,
-            "tanggal": a['tanggal_bayar'] ?? "",
-            "type": "pinjaman_pembayaran",
-          });
-        }
-      }
-
-      // Urutkan berdasarkan tanggal terbaru
-      history.sort((a, b) {
-        final tglA = a['tanggal']?.toString();
-        final tglB = b['tanggal']?.toString();
-
-        final dateA = DateTime.tryParse(tglA ?? '') ?? DateTime(1970);
-        final dateB = DateTime.tryParse(tglB ?? '') ?? DateTime(1970);
-
-        return dateB.compareTo(dateA);
-      });
+    try {
+      final nomorAnggota = widget.user['nomor_anggota'].toString();
+      final simpanan  = await ApiService.getSimpanan(nomorAnggota);
+      final pinjaman  = await ApiService.getPinjaman(nomorAnggota);
+      final penarikan = await ApiService.getPenarikan(nomorAnggota);
 
       setState(() {
-        pokok = _hitungNetSimpanan(simpanan, penarikan, "pokok");
-        wajib = _hitungNetSimpanan(simpanan, penarikan, "wajib");
+        pokok    = _hitungNetSimpanan(simpanan, penarikan, "pokok");
+        wajib    = _hitungNetSimpanan(simpanan, penarikan, "wajib");
         sukarela = _hitungNetSimpanan(simpanan, penarikan, "sukarela");
 
-
-        // Ganti ini
         totalPinjaman = pinjaman.fold(
           0.0,
           (sum, p) => sum + (double.tryParse(p['jumlah_pinjaman'].toString()) ?? 0),
         );
 
-        // SESUDAH
         tagihanBulanIni = pinjaman.fold(
           0.0,
           (sum, p) {
-            // jatuh_tempo adalah angka hari, bukan tanggal
             if (p['status'] == 'aktif') {
               sum += double.tryParse(p['angsuran_per_bulan'].toString()) ?? 0;
             }
@@ -216,63 +125,61 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       _animationController.forward();
     } catch (e) {
-      print("Error load home data: $e");
+      debugPrint("Error load home data: $e");
     }
 
-    if (mounted) {
-      setState(() => isLoading = false);
-    }
+    if (mounted) setState(() => isLoading = false);
   }
-
 
   @override
   Widget build(BuildContext context) {
-      final nomorAnggota = widget.user['nomor_anggota'];
-      final nama = widget.user['nama'] ?? '';
+    final nomorAnggota = widget.user['nomor_anggota'];
+    final nama = widget.user['nama'] ?? '';
 
-      final pages = [
-        TabunganPage(
-          nomorAnggota: nomorAnggota,
-          nama: nama,
-        ),
-        PinjamanPage(
-          nomorAnggota: nomorAnggota,
-          nama: nama,
-        ),
-        _buildHomeContent(),
-        HistoryPage(
-          nomorAnggota: nomorAnggota,
-          nama: nama,
-        ),
-        ProfilePage(nomorAnggota: nomorAnggota),
-      ];
-
+    final pages = [
+      TabunganPage(nomorAnggota: nomorAnggota, nama: nama),
+      PinjamanPage(nomorAnggota: nomorAnggota, nama: nama),
+      _buildHomeContent(),
+      HistoryPage(nomorAnggota: nomorAnggota, nama: nama),
+      ProfilePage(nomorAnggota: nomorAnggota),
+    ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: kBgPage,
       body: isLoading
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFDC16)),
-                    strokeWidth: 3,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Memuat data...',
-                    style: TextStyle(
-                      color: Color(0xFF4E342E),
-                      fontSize: 14,
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w500,
+          ? Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [kYellowLight, kYellowMid, kYellowDark],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(kBrown),
+                      strokeWidth: 3,
                     ),
-                  ),
-                ],
+                    SizedBox(height: 16),
+                    Text(
+                      'Memuat data...',
+                      style: TextStyle(
+                        color: kBrownDark,
+                        fontSize: 14,
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             )
           : pages[_currentIndex],
+
+      // Bottom nav — kuning aktif, abu tidak aktif
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           boxShadow: [
@@ -285,8 +192,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
         child: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: const Color(0xFFFFDC16),
+          backgroundColor: kWhite,
+          selectedItemColor: kBrown,
           unselectedItemColor: const Color(0xFF9E9E9E),
           currentIndex: _currentIndex,
           onTap: (index) => setState(() => _currentIndex = index),
@@ -297,27 +204,27 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             BottomNavigationBarItem(
               icon: Icon(Icons.savings_outlined),
               activeIcon: Icon(Icons.savings),
-              label: "Simpanan"
+              label: "Simpanan",
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.credit_card_outlined),
               activeIcon: Icon(Icons.credit_card),
-              label: "Pinjaman"
+              label: "Pinjaman",
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),
               activeIcon: Icon(Icons.home),
-              label: "Home"
+              label: "Home",
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.history_outlined),
               activeIcon: Icon(Icons.history),
-              label: "History"
+              label: "History",
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),
               activeIcon: Icon(Icons.person),
-              label: "Profile"
+              label: "Profile",
             ),
           ],
         ),
@@ -325,39 +232,27 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  // Home content dengan header yang sudah diperbaiki
+  // ─── HOME CONTENT ─────────────────────────────────────────────────────────
+
   Widget _buildHomeContent() {
     return FadeTransition(
       opacity: _fadeAnimation,
       child: RefreshIndicator(
         onRefresh: _loadData,
-        color: const Color(0xFFFFDC16),
+        color: kBrown,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header dengan logo dan nama KOPASMEN
-              _buildConsistentHeader(),
-              
+              _buildHeader(),
               const SizedBox(height: 20),
-              
-              // Quick Stats Cards
               _buildQuickStats(),
-              
               const SizedBox(height: 24),
-
-              // Simpanan Section
               _buildSimpananSection(),
-
               const SizedBox(height: 24),
-
-              // Pinjaman Section
               _buildPinjamanSection(),
-
-              const SizedBox(height: 24),
-              
-              const SizedBox(height: 100), // Bottom padding for navigation
+              const SizedBox(height: 100),
             ],
           ),
         ),
@@ -365,42 +260,35 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
- Widget _buildConsistentHeader() {
-  return Container(
-    decoration: const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Color(0xFFFFDC16),
-          Color(0xFFFFE554),
-        ],
+  // Header — kuning gradient 3 stop, teks coklat gelap persis web
+  Widget _buildHeader() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [kYellowLight, kYellowMid, kYellowDark],
+        ),
       ),
-    ),
-    child: SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center, // supaya center
-          children: [
-            // Logo + Nama di tengah
-            Align(
-              alignment: Alignment.centerLeft, // tetap kepinggir kiri
-              child: Row(
-                mainAxisSize: MainAxisSize.min, // biar wrap konten aja
-                mainAxisAlignment: MainAxisAlignment.center,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Baris logo + nama koperasi
+              Row(
                 children: [
-                  // Logo
                   Container(
-                    width: 55,
-                    height: 55,
+                    width: 52,
+                    height: 52,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: kWhite,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 6,
+                          color: Colors.black.withOpacity(0.12),
+                          blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),
                       ],
@@ -410,21 +298,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       child: Image.asset(
                         'assets/images/logo_smea.jpg',
                         fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Icon(Icons.school, size: 28, color: Colors.grey),
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.school,
+                          size: 26,
+                          color: kBrown,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 17),
+                  const SizedBox(width: 14),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         "KOPASMEN",
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF4E342E),
+                          color: kBrownDark,
                           fontFamily: 'Poppins',
                         ),
                       ),
@@ -432,8 +323,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       Text(
                         "Koperasi Pegawai SMEA Negeri",
                         style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.brown[800]?.withOpacity(0.7),
+                          fontSize: 11,
+                          color: kBrown.withOpacity(0.7),
                           fontFamily: 'Poppins',
                           fontWeight: FontWeight.w500,
                         ),
@@ -442,51 +333,46 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ],
               ),
-            ),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
-            // Card info user
-            _buildUserInfoCard(),
-          ],
+              // Card info user — putih bersih di atas kuning
+              _buildUserInfoCard(),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-Widget _buildUserInfoCard() {
-  return Container(
-    width: double.infinity,
-    decoration: ShapeDecoration(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+  Widget _buildUserInfoCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: kWhite,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      shadows: const [
-        BoxShadow(
-          color: Color(0x1A000000),
-          blurRadius: 12,
-          offset: Offset(0, 6),
-        )
-      ],
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(20),
       child: Row(
         children: [
+          // Avatar kuning
           Container(
-            width: 50,
-            height: 50,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFFDC16), Color(0xFFFFE554)],
-              ),
-              borderRadius: BorderRadius.circular(25),
+              color: kYellowLight,
+              borderRadius: BorderRadius.circular(24),
             ),
-            child: const Icon(Icons.person, color: Color(0xFF4E342E), size: 28),
+            child: const Icon(Icons.person, color: kBrownDark, size: 26),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -494,31 +380,48 @@ Widget _buildUserInfoCard() {
                 Text(
                   widget.user['nama'] ?? "-",
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF3E2723),
+                    color: kBrownDark,
                     fontFamily: 'Poppins',
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
-                  "No Anggota: ${widget.user['nomor_anggota'] ?? '-'}",
+                  "No. Anggota: ${widget.user['nomor_anggota'] ?? '-'}",
                   style: const TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF757575),
+                    color: kTextGrey,
                     fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
-          )
+          ),
+          // Badge status
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: kYellowLight,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Text(
+              "Anggota",
+              style: TextStyle(
+                fontSize: 11,
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w700,
+                color: kBrownDark,
+              ),
+            ),
+          ),
         ],
       ),
-    ),
-  );
-}
+    );
+  }
 
-
+  // Quick stats — 2 kartu putih bersih
   Widget _buildQuickStats() {
     final totalSimpanan = pokok + wajib + sukarela;
     return Padding(
@@ -530,7 +433,7 @@ Widget _buildUserInfoCard() {
               icon: Icons.account_balance_wallet,
               title: "Total Simpanan",
               amount: "Rp ${_formatCurrency(totalSimpanan)}",
-              color: const Color(0xFF2E7D32),
+              color: kGreen,
             ),
           ),
           const SizedBox(width: 12),
@@ -539,7 +442,7 @@ Widget _buildUserInfoCard() {
               icon: Icons.credit_card,
               title: "Total Pinjaman",
               amount: "Rp ${_formatCurrency(totalPinjaman)}",
-              color: const Color(0xFF1976D2),
+              color: kBlue,
             ),
           ),
         ],
@@ -554,273 +457,46 @@ Widget _buildUserInfoCard() {
     required Color color,
   }) {
     return Container(
-      decoration: ShapeDecoration(
-        color: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        shadows: const [
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: kWhite,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 8,
-            offset: Offset(0, 4),
-            spreadRadius: 0,
-          )
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 18),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF757575),
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              amount,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: color,
-                fontFamily: 'Poppins',
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSimpananSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionHeader("Rincian Simpanan", Icons.savings),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 180,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            children: [
-              _buildConsistentSimpananCard(
-                Icons.account_balance,
-                "Simpanan Pokok",
-                pokok,
-                const Color(0xFF2E7D32),
-              ),
-              _buildConsistentSimpananCard(
-                Icons.savings,
-                "Simpanan Wajib",
-                wajib,
-                const Color(0xFF1976D2),
-              ),
-              _buildConsistentSimpananCard(
-                Icons.volunteer_activism,
-                "Simpanan Sukarela",
-                sukarela,
-                const Color(0xFF7B1FA2),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPinjamanSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader("Informasi Pinjaman", Icons.credit_card),
-          const SizedBox(height: 16),
           Container(
-            width: double.infinity,
-            decoration: ShapeDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF1976D2).withOpacity(0.1),
-                  Color(0xFF1976D2).withOpacity(0.05),
-                ],
-              ),
-              shape: RoundedRectangleBorder(
-                side: BorderSide(width: 2, color: Color(0xFF1976D2).withOpacity(0.3)),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              shadows: const [
-                BoxShadow(
-                  color: Color(0x1A000000),
-                  blurRadius: 12,
-                  offset: Offset(0, 6),
-                  spreadRadius: 0,
-                )
-              ],
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Color(0xFF1976D2),
-                              Color(0xFF1976D2).withOpacity(0.8),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Color(0xFF1976D2).withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.credit_card,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Status Pinjaman Anda",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF1976D2),
-                                fontFamily: 'Poppins',
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Total yang telah dipinjam',
-                              style: TextStyle(
-                                color: Color(0xFF1976D2).withOpacity(0.7),
-                                fontSize: 12,
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "Total Pinjaman",
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF757575),
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              "Rp ${_formatCurrency(totalPinjaman)}",
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF1976D2),
-                                fontFamily: 'Poppins',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        width: 2,
-                        height: 40,
-                        color: Color(0xFF1976D2).withOpacity(0.3),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            const Text(
-                              "Tagihan Bulan Ini",
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF757575),
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              "Rp ${_formatCurrency(tagihanBulanIni)}",
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFFD32F2F),
-                                fontFamily: 'Poppins',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            child: Icon(icon, color: color, size: 18),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: const Color(0xFF4E342E)),
-          const SizedBox(width: 8),
+          const SizedBox(height: 12),
           Text(
             title,
             style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF4E342E),
+              fontSize: 12,
+              color: kTextGrey,
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            amount,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: color,
               fontFamily: 'Poppins',
             ),
           ),
@@ -829,89 +505,260 @@ Widget _buildUserInfoCard() {
     );
   }
 
-  Widget _buildConsistentSimpananCard(IconData icon, String title, double saldo, Color color) {
-    return Container(
-      width: 200,
-      margin: const EdgeInsets.only(right: 16),
-      decoration: ShapeDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            color.withOpacity(0.1),
-            color.withOpacity(0.05),
-          ],
-        ),
-        shape: RoundedRectangleBorder(
-          side: BorderSide(width: 2, color: color.withOpacity(0.3)),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        shadows: const [
-          BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 12,
-            offset: Offset(0, 6),
-            spreadRadius: 0,
-          )
+  // Section header — icon + teks coklat
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: kYellowLight.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: kBrown),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: kBrown,
+              fontFamily: 'Poppins',
+            ),
+          ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    color,
-                    color.withOpacity(0.8),
+    );
+  }
+
+  // Simpanan section — kartu horizontal scroll
+  Widget _buildSimpananSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader("Rincian Simpanan", Icons.savings),
+        const SizedBox(height: 14),
+        SizedBox(
+          height: 175,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            children: [
+              _buildSimpananCard(Icons.account_balance, "Simpanan Pokok", pokok, kGreen),
+              _buildSimpananCard(Icons.savings, "Simpanan Wajib", wajib, kBlue),
+              _buildSimpananCard(Icons.volunteer_activism, "Simpanan Sukarela", sukarela, kPurple),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSimpananCard(IconData icon, String title, double saldo, Color color) {
+    return Container(
+      width: 185,
+      margin: const EdgeInsets.only(right: 14),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: kWhite,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.2), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: color,
+              fontFamily: 'Poppins',
+            ),
+          ),
+          const Spacer(),
+          Text(
+            "Rp ${_formatCurrency(saldo)}",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: color,
+              fontFamily: 'Poppins',
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Saldo tersedia',
+            style: TextStyle(
+              color: color.withOpacity(0.6),
+              fontSize: 11,
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Pinjaman section — card coklat-kuning sesuai tema web
+  Widget _buildPinjamanSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader("Informasi Pinjaman", Icons.credit_card),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: kWhite,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: kYellowLight, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: kYellowLight.withOpacity(0.2),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header card pinjaman
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: kYellowLight,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.credit_card, color: kBrownDark, size: 22),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Status Pinjaman Anda",
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: kBrownDark,
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Total yang telah dipinjam',
+                            style: TextStyle(
+                              color: kBrown.withOpacity(0.6),
+                              fontSize: 12,
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(icon, color: Colors.white, size: 24),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: color,
-                fontFamily: 'Poppins',
+
+                const SizedBox(height: 18),
+                Divider(color: kYellowLight.withOpacity(0.5), thickness: 1),
+                const SizedBox(height: 14),
+
+                // Total pinjaman & tagihan
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Total Pinjaman",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: kTextGrey,
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Rp ${_formatCurrency(totalPinjaman)}",
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: kBrown,
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 36,
+                      color: kYellowLight,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const Text(
+                            "Tagihan Bulan Ini",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: kTextGrey,
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Rp ${_formatCurrency(tagihanBulanIni)}",
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: kRed,
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
+              ],
             ),
-            const Spacer(),
-            Text(
-              "Rp ${_formatCurrency(saldo)}",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: color,
-                fontFamily: 'Poppins',
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Saldo tersedia',
-              style: TextStyle(
-                color: color.withOpacity(0.7),
-                fontSize: 12,
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
